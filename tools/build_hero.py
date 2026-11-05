@@ -21,20 +21,21 @@ from scipy import ndimage as ni
 from scipy.spatial import Delaunay
 from skimage.morphology import medial_axis
 sys.path.insert(0, 'tools')
-from build_assets import cut, sharpen
+from build_assets import cut
+from crisp import crisp
 
-# name: listing id, widest colour map, vertex spacing, hood opening polygon (fractions of the crop),
+# name: listing id, vertex spacing, hood opening polygon (fractions of the crop),
 # neck line (fraction of height). The polygons were traced from the front photos by hand.
 G = {
-    'blossom': dict(id='4598064712', maxw=1600, grid=11, neck=.30,
+    'blossom': dict(id='4598064712', grid=11, neck=.30,
                     hood=[(.42, .205), (.5, .198), (.58, .205), (.585, .26), (.555, .295), (.525, .335), (.5, .36), (.475, .335), (.445, .295), (.415, .26)]),
-    'pagoda':  dict(id='4604463792', maxw=1280, grid=14, neck=.27,
+    'pagoda':  dict(id='4604463792', grid=14, neck=.27,
                     hood=[(.445, .21), (.5, .205), (.555, .21), (.545, .255), (.52, .30), (.5, .335), (.48, .30), (.455, .255)]),
-    'globe':   dict(id='4593331552', maxw=1280, grid=14, neck=.15, lip=(22, .1),
+    'globe':   dict(id='4593331552', grid=14, neck=.15, lip=(22, .1),
                     hood=[(.405, .055), (.46, .06), (.54, .06), (.595, .055), (.60, .085), (.565, .16), (.53, .205), (.5, .24), (.47, .205), (.435, .16), (.40, .085)]),
-    'rooster': dict(id='4593507922', maxw=1280, grid=14, neck=.24,
+    'rooster': dict(id='4593507922', grid=14, neck=.24,
                     hood=[(.445, .228), (.5, .225), (.555, .228), (.55, .27), (.53, .31), (.5, .355), (.47, .31), (.45, .27)]),
-    'dreamer': dict(id='4594073163', maxw=1280, grid=14, neck=.17, lip=(22, .1),
+    'dreamer': dict(id='4594073163', grid=14, neck=.17, lip=(22, .1),
                     hood=[(.365, .06), (.5, .05), (.635, .06), (.63, .09), (.585, .135), (.545, .175), (.5, .215), (.455, .175), (.415, .135), (.37, .09)]),
 }
 OUT = 'site/img/hero'
@@ -156,12 +157,16 @@ def base_lum(rgb, C):
     lum = f.mean(2)
     lo = cv2.resize((lum * 255).astype(np.uint8), None, fx=.5, fy=.5, interpolation=cv2.INTER_AREA)
     med = cv2.resize(cv2.medianBlur(lo, 61), lum.shape[::-1], interpolation=cv2.INTER_LINEAR).astype(np.float32) / 255
-    ink = (np.abs(lum - med) > .085) | (f.max(2) - f.min(2) > .13)
+    chroma = f.max(2) - f.min(2)
+    lo = cv2.resize((chroma * 255).astype(np.uint8), None, fx=.5, fy=.5, interpolation=cv2.INTER_AREA)
+    base = cv2.resize(cv2.medianBlur(lo, 61), lum.shape[::-1], interpolation=cv2.INTER_LINEAR).astype(np.float32) / 255
+    # ink stands out from the fabric around it, in brightness or in colour
+    ink = (np.abs(lum - med) > .085) | (np.abs(chroma - base) > .05)
     ink = ni.binary_dilation(ink, iterations=4)
     ok = (C & ~ink).astype(np.float32)
     fill = ni.gaussian_filter(lum * ok, 14) / np.maximum(ni.gaussian_filter(ok, 14), 1e-3)
     soft = ni.gaussian_filter(ok, 2)
-    return lum * soft + fill * (1 - soft)
+    return lum * soft + fill * (1 - soft), ni.gaussian_filter((ink & C).astype(np.float32), 3)
 
 
 def contours(m):
@@ -181,8 +186,8 @@ def resample(c, step, smooth=2.5):
 
 def build(key, cfg):
     lid = cfg['id']
-    front = sharpen(cut(f'raw/{lid}/0.jpg', 'raw/mask/_m.png'))
-    back = sharpen(cut(f'raw/{lid}/1.jpg', 'raw/mask/_m.png')).transpose(Image.FLIP_LEFT_RIGHT)
+    front = cut(f'raw/{lid}/0.jpg', 'raw/mask/_m.png')
+    back = cut(f'raw/{lid}/1.jpg', 'raw/mask/_m.png').transpose(Image.FLIP_LEFT_RIGHT)
     box = None
     for im in (front, back):
         b = im.getchannel('A').point(lambda v: 255 if v > 12 else 0).getbbox()
@@ -210,8 +215,6 @@ def build(key, cfg):
         f = c.astype(np.float32)
         return (f * (1 - wrap) + cv2.GaussianBlur(f, (0, 0), 5) * wrap).round().astype(np.uint8)
     colF, colB = soften(colF), soften(colB)
-    fit(Image.fromarray(colF), cfg['maxw']).save(f'{OUT}/{key}-front.webp', quality=90, method=6)
-    fit(Image.fromarray(colB), cfg['maxw']).save(f'{OUT}/{key}-back.webp', quality=90, method=6)
 
     # volume at a third of the size, on a canvas with room for the extended ends
     s, P = 3, 110
@@ -246,7 +249,11 @@ def build(key, cfg):
     zc = ni.gaussian_filter(zc, 18)
 
     # folds from the photo and a little loose cloth, kept away from the seam
-    lumF, lumB = base_lum(colF, C), base_lum(colB, C)
+    (lumF, inkF), (lumB, inkB) = base_lum(colF, C), base_lum(colB, C)
+    # colour maps: large and sharpened for desktop, the plain size for phones
+    for name, col, ink in (('front', colF, inkF), ('back', colB, inkB)):
+        fit(Image.fromarray(crisp(col, ink)), 2240).save(f'{OUT}/{key}-{name}.webp', quality=91, method=6)
+        fit(Image.fromarray(col), 1280).save(f'{OUT}/{key}-{name}-m.webp', quality=86, method=6)
 
     def folds(lum):
         f = ni.gaussian_filter(lum, 12) - ni.gaussian_filter(lum, 52)
@@ -426,7 +433,7 @@ def build(key, cfg):
         n[..., :2] *= np.clip((dC - 8) / 30, 0, 1)[..., None]   # none where the fabric wraps out of view
         n /= np.linalg.norm(n, axis=2, keepdims=True)
         nm = Image.fromarray(((n * .5 + .5) * 255).astype(np.uint8), 'RGB')
-        fit(nm, 1024).save(f'{OUT}/{key}-{name}-n.webp', quality=84, method=6)
+        fit(nm, 1280).save(f'{OUT}/{key}-{name}-n.webp', quality=84, method=6)
 
     inner = (colF[C].astype(np.float32).mean(0) * .34).astype(int)
     size = os.path.getsize(f'{OUT}/{key}.bin')

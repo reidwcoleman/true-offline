@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-v="14">
+<html lang="en" data-v="17">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -13,7 +13,7 @@
 <link rel="icon" href="img/star.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="preload" href="fonts/archivo-italic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=17">
 <script>
 /* The intro plays once per visit. It is pure CSS, so a script failure can never leave it covering the page. */
 (function () {
@@ -105,17 +105,18 @@
 
 <section class="shop" id="shop" aria-labelledby="shop-h">
   <div class="line-head">
-    <h2 id="shop-h" data-stretch data-wave>The line</h2>
-    <p class="line-sub rv">Twenty pieces, washed, printed and faded. Move across a piece to turn it round.</p>
+    <h2 id="shop-h" data-wave data-rise>The line</h2>
   </div>
   <div class="line-bar" data-line-bar>
     <div class="chips" role="group" aria-label="Filter by type" data-chips></div>
     <p class="line-count" aria-live="polite" data-count></p>
-    <div class="sorts" role="group" aria-label="Sort" data-sorts>
-      <button type="button" data-sort="featured" aria-pressed="true">Featured</button>
-      <button type="button" data-sort="low" aria-pressed="false">Price, low first</button>
-      <button type="button" data-sort="high" aria-pressed="false">Price, high first</button>
-    </div>
+    <label class="sort"><span class="sr">Sort</span>
+      <select data-sort>
+        <option value="featured">Featured</option>
+        <option value="low">Price, low to high</option>
+        <option value="high">Price, high to low</option>
+      </select>
+    </label>
   </div>
   <ul class="grid" data-grid></ul>
   <noscript><p class="shop-noscript">The shop needs JavaScript. Everything is also on <a href="https://www.etsy.com/shop/TrueOffline">Etsy</a>.</p></noscript>
@@ -163,7 +164,7 @@
       <li><a class="ul" href="https://www.instagram.com/trueoffline.clothing/" rel="noopener">Instagram</a></li>
     </ul>
   </div>
-  <p class="foot-wm" aria-hidden="true" data-stretch="end" data-wave>True Offline</p>
+  <p class="foot-wm" aria-hidden="true" data-wave data-rise>True Offline</p>
 </footer>
 
 <div class="sheet" data-sheet role="dialog" aria-modal="true" aria-labelledby="sheet-name" hidden>
@@ -226,8 +227,9 @@
 
 <div class="cur" aria-hidden="true" data-cur></div>
 
-<script src="data.js?v=14"></script>
-<script src="app.js?v=14"></script>
-<script src="hero.js?v=14" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
+<script src="lenis.js?v=17"></script>
+<script src="data.js?v=17"></script>
+<script src="app.js?v=17"></script>
+<script src="hero.js?v=17" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
 </body>
 </html>

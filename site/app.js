@@ -24,6 +24,14 @@
   }, { passive: true });
   addEventListener('resize', runScrubs);
 
+  /* Wheel and trackpad scrolling glide. Touch keeps the phone's own scrolling, which is already smooth. */
+  let lenis = null;
+  if (!calm && fine && window.Lenis) {
+    lenis = new window.Lenis({ lerp: .115, wheelMultiplier: .95, anchors: { offset: 0 }, prevent: n => !!n.closest('[data-sheet],.reel') });
+    const run = t => { lenis.raf(t); requestAnimationFrame(run); };
+    requestAnimationFrame(run);
+  }
+
   /* A garment "turning": cross-dissolve the two views while the width dips, so it reads as a
      rotation without ever showing a paper-thin edge. t: 0 = front, 1 = back. */
   function setTurn(front, back, t) {
@@ -149,7 +157,7 @@
       if (i === shown) return;
       shown = i;
       const { p } = picks[i];
-      copy.innerHTML = `<p class="turn-name">${p.name}</p><p class="turn-note">${p.note}</p><a class="turn-link ul" href="#/${p.slug}">View piece, ${money(p.price)}</a>`;
+      copy.innerHTML = `<p class="turn-i">${String(i + 1).padStart(2, '0')} / ${String(picks.length).padStart(2, '0')}</p><p class="turn-name">${p.name}</p><p class="turn-note">${p.note}</p><a class="turn-link" href="#/${p.slug}"><span>View piece</span><span>${money(p.price)}</span></a>`;
     };
     const paint = () => {
       const r = sec.getBoundingClientRect();
@@ -189,23 +197,20 @@
     'logo-grey-washed-box-hoodie', 'waistband-barrel-sweatpants', ['deep-red-logo-zip-hoodie', 1], 'logo-compression-shirt', 'darks-barrel-fleece-sweatpants',
   ];
   function shop() {
-    const grid = $('[data-grid]'), chips = $('[data-chips]'), sorts = $('[data-sorts]'), count = $('[data-count]');
+    const grid = $('[data-grid]'), chips = $('[data-chips]'), sorts = $('[data-sort]'), count = $('[data-count]');
     grid.innerHTML = ORDER.map((o, i) => {
       const big = Array.isArray(o), p = bySlug(big ? o[0] : o), c = firstColour(p);
       const a = big ? 'back' : 'front', z = big ? 'front' : 'back';
-      const extra = p.colours ? ` <span class="tile-more">${p.colours.length} colors</span>` : '';
-      return `<li class="tile${big ? ' big' : ''}" data-cat="${p.cat}" data-slug="${p.slug}" data-price="${p.price}" data-i="${i}" style="--d:${(i % 4) * 60}ms"><a href="#/${p.slug}" data-cursor="View" data-open-side="${big ? 1 : 0}">
+      const set = side => `srcset="${src(p, side, c, true)} 720w,${src(p, side, c)} 1200w" sizes="${big ? '(max-width:1000px) 100vw,50vw' : '(max-width:760px) 50vw,(max-width:1000px) 33vw,25vw'}"`;
+      return `<li class="tile${big ? ' big' : ''}" data-cat="${p.cat}" data-slug="${p.slug}" data-price="${p.price}" data-i="${i}" style="--d:${(i % 4) * 70}ms"><a href="#/${p.slug}" data-cursor="View" data-open-side="${big ? 1 : 0}">
         <div class="tile-plate">
           <div class="tile-card">
-            <img class="f" src="${src(p, a, c, !big)}" width="720" height="900" alt="${p.name}" loading="lazy" draggable="false">
-            <img class="b" src="${src(p, z, c, !big)}" width="720" height="900" alt="" loading="lazy" draggable="false">
+            <img class="f" src="${src(p, a, c, !big)}" ${set(a)} width="720" height="900" alt="${p.name}" loading="lazy" decoding="async" draggable="false">
+            <img class="b" src="${src(p, z, c, !big)}" ${set(z)} width="720" height="900" alt="" loading="lazy" decoding="async" draggable="false">
             <i class="tile-glare"></i>
           </div>
-          <span class="tile-no"></span>
-          <span class="tile-side" data-a="${big ? 'Back' : 'Front'}" data-z="${big ? 'Front' : 'Back'}">${big ? 'Back' : 'Front'}</span>
-          <span class="tile-sizes" aria-hidden="true">${p.sizes.map(s => `<b>${s}</b>`).join('')}</span>
         </div>
-        <div class="tile-meta"><span class="tile-name">${p.name}</span><span class="tile-price">${money(p.price)}</span><span class="tile-cat">${p.cat}${extra}</span></div>
+        <div class="tile-meta"><span class="tile-name">${p.name}</span><span class="tile-right"><span class="tile-price">${money(p.price)}</span><span class="tile-sizes" aria-hidden="true">${p.sizes[0]} to ${p.sizes[p.sizes.length - 1]}</span></span></div>
       </a></li>`;
     }).join('');
 
@@ -217,8 +222,8 @@
     const ind = $('.chip-ind', chips);
     const place = () => {
       const b = $('[aria-pressed=true]', chips);
-      ind.style.width = b.offsetWidth + 'px';
-      ind.style.transform = `translate(${b.offsetLeft}px,${b.offsetTop}px)`;
+      ind.style.width = b.offsetWidth - 2 * parseFloat(getComputedStyle(b).paddingLeft) + 'px';
+      ind.style.transform = `translateX(${b.offsetLeft + parseFloat(getComputedStyle(b).paddingLeft)}px)`;
     };
     place();
     addEventListener('resize', place);
@@ -227,8 +232,7 @@
     let cat = 'All', sort = 'featured';
     const tiles = $$('.tile', grid);
     const number = () => {
-      let n = 0;
-      $$('.tile', grid).forEach(t => { if (!t.hidden) $('.tile-no', t).textContent = String(++n).padStart(2, '0'); });
+      const n = tiles.filter(t => !t.hidden).length;
       count.textContent = `${n} ${n === 1 ? 'piece' : 'pieces'}`;
     };
     const apply = () => {
@@ -256,38 +260,9 @@
       cat = b.dataset.c;
       change();
     });
-    sorts.addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
-      $$('button', sorts).forEach(x => x.setAttribute('aria-pressed', x === b));
-      sort = b.dataset.sort;
-      change();
-    });
+    sorts.addEventListener('change', () => { sort = sorts.value; change(); });
     number();
-    if (!fine) $('.line-sub').textContent = 'Twenty pieces, washed, printed and faded. Each one turns over as you scroll past.';
     tileMotion(grid, tiles);
-  }
-
-  /* The colour a print is mostly made of, from a tiny copy of the image. */
-  const tints = new Map();
-  function tintOf(img) {
-    if (tints.has(img.src)) return tints.get(img.src);
-    let out = '#8a8a96';
-    try {
-      const c = document.createElement('canvas'); c.width = c.height = 24;
-      const g = c.getContext('2d', { willReadFrequently: true });
-      g.drawImage(img, 0, 0, 24, 24);
-      const d = g.getImageData(0, 0, 24, 24).data;
-      let r = 0, gg = 0, b = 0, w = 0;
-      for (let i = 0; i < d.length; i += 4) {
-        if (d[i + 3] < 200) continue;
-        const sat = Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]);
-        const k = sat * sat + 1;
-        r += d[i] * k; gg += d[i + 1] * k; b += d[i + 2] * k; w += k;
-      }
-      if (w) out = `rgb(${Math.round(r / w)},${Math.round(gg / w)},${Math.round(b / w)})`;
-    } catch (e) { /* the plain grey is fine */ }
-    tints.set(img.src, out);
-    return out;
   }
 
   /* Tiles follow the pointer: the card tilts and catches light, and moving across it turns the garment
@@ -295,7 +270,7 @@
   function tileMotion(grid, tiles) {
     if (calm) return;
     if (!fine) {
-      const items = tiles.map(t => ({ t, f: $('.f', t), b: $('.b', t), a: $('a', t), side: $('.tile-side', t), was: -1 }));
+      const items = tiles.map(t => ({ t, f: $('.f', t), b: $('.b', t), a: $('a', t), was: -1 }));
       scrubs.push(() => {
         const h = innerHeight;
         for (const it of items) {
@@ -307,7 +282,6 @@
           it.was = v;
           setTurn(it.f, it.b, v);
           it.a.dataset.flip = v > .5 ? 1 : 0;
-          it.side.textContent = v > .5 ? it.side.dataset.z : it.side.dataset.a;
         }
       });
       return;
@@ -317,7 +291,7 @@
     const get = a => {
       let s = state.get(a);
       if (!s) {
-        s = { a, plate: $('.tile-plate', a), card: $('.tile-card', a), f: $('.f', a), b: $('.b', a), glare: $('.tile-glare', a), side: $('.tile-side', a), t: 0, tt: 0, rx: 0, ry: 0, trx: 0, try: 0, gx: 50, gy: 40, on: 0, ton: 0, shown: 0 };
+        s = { a, plate: $('.tile-plate', a), card: $('.tile-card', a), f: $('.f', a), b: $('.b', a), glare: $('.tile-glare', a), t: 0, tt: 0, rx: 0, ry: 0, trx: 0, try: 0, gx: 50, gy: 40, on: 0, ton: 0, shown: 0 };
         state.set(a, s);
       }
       return s;
@@ -325,17 +299,16 @@
     const paint = () => {
       raf = 0;
       for (const s of live) {
-        const e = .16;
+        const e = .13;
         s.t += (s.tt - s.t) * e; s.rx += (s.trx - s.rx) * e; s.ry += (s.try - s.ry) * e; s.on += (s.ton - s.on) * e;
-        s.card.style.transform = `perspective(1100px) rotateX(${s.rx.toFixed(2)}deg) rotateY(${s.ry.toFixed(2)}deg) scale(${(1 + s.on * .018).toFixed(4)})`;
-        s.glare.style.opacity = (s.on * .9).toFixed(3);
-        s.glare.style.background = `radial-gradient(420px circle at ${s.gx.toFixed(1)}% ${s.gy.toFixed(1)}%,rgba(255,255,255,.3),rgba(255,255,255,0) 62%)`;
+        s.card.style.transform = `perspective(1100px) rotateX(${s.rx.toFixed(2)}deg) rotateY(${s.ry.toFixed(2)}deg) scale(${(1 + s.on * .012).toFixed(4)})`;
+        s.glare.style.opacity = (s.on * .7).toFixed(3);
+        s.glare.style.background = `radial-gradient(380px circle at ${s.gx.toFixed(1)}% ${s.gy.toFixed(1)}%,rgba(255,255,255,.22),rgba(255,255,255,0) 64%)`;
         setTurn(s.f, s.b, s.t);
         const back = s.t > .5 ? 1 : 0;
         if (back !== s.shown) {
           s.shown = back;
           s.a.dataset.flip = back;
-          s.side.textContent = back ? s.side.dataset.z : s.side.dataset.a;
         }
         if (!s.ton && s.on < .004 && s.t < .004) {
           live.delete(s);
@@ -355,9 +328,8 @@
       const x = clamp((e.clientX - r.left) / r.width), y = clamp((e.clientY - r.top) / r.height);
       s.ton = 1;
       s.tt = clamp((x - .34) / .32);                // left third one side, right third the other
-      s.try = (x - .5) * 11; s.trx = (.5 - y) * 8;
+      s.try = (x - .5) * 6; s.trx = (.5 - y) * 4.5;
       s.gx = x * 100; s.gy = y * 100;
-      if (!a.style.getPropertyValue('--tint')) a.style.setProperty('--tint', tintOf(s.b.complete && s.b.naturalWidth ? s.b : s.f));
       kick(s);
     }, { passive: true });
     grid.addEventListener('pointerout', e => {
@@ -487,6 +459,7 @@
     const reveal = () => {
       el.hidden = false;
       document.body.classList.add('locked');
+      if (lenis) lenis.stop();
       $('.sheet-info').scrollTop = 0; el.scrollTop = 0;
       $('[data-close]').focus({ preventScroll: true });
     };
@@ -516,6 +489,7 @@
     function hide() {
       el.hidden = true; cur = null;
       document.body.classList.remove('locked');
+      if (lenis) lenis.start();
       document.title = 'True Offline';
       if (opener) opener.focus({ preventScroll: true });
     }
@@ -613,21 +587,7 @@
         io.unobserve(e.target);
       });
     }, { rootMargin: '0px 0px -8% 0px', threshold: .01 });
-    $$('.rv,.mask,.tile').forEach(e => io.observe(e));
-    if (calm) return;
-    // Variable width: headline type stretches out to full width as it arrives.
-    const items = $$('[data-stretch]');
-    scrubs.push(() => {
-      const h = innerHeight;
-      const left = document.documentElement.scrollHeight - h - scrollY;
-      for (const e of items) {
-        const r = e.getBoundingClientRect();
-        if (r.bottom < 0 || r.top > h) continue;
-        // The footer can never rise far up the screen, so it finishes on reaching the page end.
-        const k = e.dataset.stretch === 'end' ? clamp(1 - left / (h * .4)) : clamp((h - r.top) / (h * .42));
-        e.style.fontStretch = (62 + 63 * (1 - Math.pow(1 - k, 3))).toFixed(1) + '%';
-      }
-    });
+    $$('.rv,.mask,.tile,[data-rise]').forEach(e => io.observe(e));
   }
 
   /* ---------- cursor label ---------- */
@@ -770,7 +730,7 @@
   function wave(el) {
     const text = el.textContent;
     if (!el.hasAttribute('aria-hidden')) el.setAttribute('aria-label', text);
-    el.innerHTML = [...text].map(c => (c === ' ' ? '<span class="wv-sp"> </span>' : `<i class="wv" aria-hidden="true">${c}</i>`)).join('');
+    el.innerHTML = [...text].map((c, i) => (c === ' ' ? '<span class="wv-sp"> </span>' : `<i class="wv" aria-hidden="true" style="--i:${i}">${c}</i>`)).join('');
     if (!fine || calm) return;
     const ls = $$('.wv', el).map(n => ({ n, c: 0, g: 0, tg: 0 }));
     let raf = 0, near = 0, tNear = 0;
@@ -778,7 +738,7 @@
     const paint = () => {
       raf = 0;
       near += (tNear - near) * .14;
-      const base = parseFloat(el.style.fontStretch) || 125;
+      const base = 125;
       let busy = Math.abs(tNear - near) > .004;
       for (const l of ls) {
         l.g += (l.tg - l.g) * .16;

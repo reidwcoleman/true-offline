@@ -20,11 +20,14 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const expoOut = t => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
 const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a)); return t * t * (3 - 2 * t); };
 const inOut = t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const silk = t => t * t * t * (t * (t * 6 - 15) + 10);          // starts and stops with no jolt
+const damp = (rate, dt) => 1 - Math.exp(-rate * dt);             // the same feel at 60 or 120 Hz
 const rng = seed => () => { seed |= 0; seed = seed + 0x6d2b79f5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 
 const STAR = [[135, 0], [137, 74], [332, 60], [147, 114], [150, 195], [87, 147], [17, 199], [57, 127], [0, 82], [90, 78]];
 const coarse = matchMedia('(pointer:coarse)').matches;
 const VER = document.documentElement.dataset.v || '1';
+const SMALL = coarse || Math.min(screen.width, screen.height) < 700 ? '-m' : '';
 
 function fail(err) {
   console.warn('hero fallback', err);
@@ -86,11 +89,11 @@ function glyph(ch, cap) {
   const shapes = svg.paths.flatMap(p => SVGLoader.createShapes(p));
   const k = cap / 1.2;
   const g = new THREE.ExtrudeGeometry(shapes, {
-    depth: .3 * k / s, curveSegments: 12, bevelEnabled: true, bevelThickness: .055 * k / s, bevelSize: .04 * k / s, bevelSegments: 5,
+    depth: .15 * k / s, curveSegments: 14, bevelEnabled: true, bevelThickness: .04 * k / s, bevelSize: .03 * k / s, bevelSegments: 4,
   });
   g.scale(s, s, s);
   g.translate(-GL.glyphs[ch].adv * s / 2, 0, 0);
-  pillow(g, .5);
+  pillow(g, .3);
   glyphCache.set(key, g);
   return g;
 }
@@ -108,9 +111,9 @@ function starGeometry(size, depth) {
 
 /* Type laid along an arc. It always faces the viewer enough to read: letters turn only part of the
    way with the curve (lean). Each letter keeps its rest pose so it can react to the pointer. */
-function arc(text, { R, cap, y = 0, lean = .55, mat }) {
+function arc(text, { R, cap, y = 0, lean = .55, mat, flat = 1 }) {
   const g = new THREE.Group();
-  const s = cap / GL.cap, gap = .13 * cap, space = .62 * cap;
+  const s = cap / GL.cap, gap = .17 * cap, space = .62 * cap;
   const items = [];
   let run = 0;
   for (const ch of text) {
@@ -120,15 +123,16 @@ function arc(text, { R, cap, y = 0, lean = .55, mat }) {
     run += w + gap;
   }
   run -= gap;
+  // Spaced evenly across the screen, then wrapped onto the ring, so the ends never crowd together.
   for (const it of items) {
-    const a = (it.at - run / 2) / R;
+    const a = Math.asin(clamp((it.at - run / 2) / R, -1, 1));
     const m = new THREE.Mesh(glyph(it.ch, cap), mat);
-    m.position.set(Math.sin(a) * R, y, Math.cos(a) * R);
+    m.position.set(Math.sin(a) * R, y, Math.cos(a) * R * flat);
     m.rotation.y = a * lean;
     m.userData.letter = { x: m.position.x, y, z: m.position.z, ry: a * lean, a, lift: 0, v: 0, flip: 0, flipTo: 0, sx: 0, sy: 0 };
     g.add(m);
   }
-  g.userData.half = run / 2 / R;                  // half the arc, in radians
+  g.userData.half = Math.asin(clamp(run / 2 / R, 0, 1));   // half the arc, in radians
   return g;
 }
 
@@ -268,8 +272,10 @@ async function start() {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
-  let dpr = Math.min(devicePixelRatio || 1, 1.75);
+  let dpr = Math.min(devicePixelRatio || 1, 2);
   renderer.setPixelRatio(dpr);
+  renderer.shadowMap.enabled = !coarse;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(INK);
@@ -277,29 +283,50 @@ async function start() {
   scene.fog = new THREE.Fog(INK, 20, 40);
   const camera = new THREE.PerspectiveCamera(30, 1, .1, 400);
 
-  const tl = new THREE.TextureLoader();
-  const load = (u, srgb) => new Promise((res, rej) => tl.load(u, t => {
+  // Decoded off the main thread, so loading the next piece never drops a frame.
+  const bitmaps = new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY' });
+  const load = (u, srgb) => new Promise((res, rej) => bitmaps.load(u, img => {
+    const t = new THREE.Texture(img);
+    t.flipY = false;
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    t.needsUpdate = true;
     res(t);
   }, undefined, rej));
 
   /* Each garment is one closed mesh with the two photos on it. Loaded once, then shared by the hero
      and the featured stops. */
   const H = 7.4;
-  const cloth = (map, normalMap) => new THREE.MeshPhysicalMaterial({
-    map, normalMap, normalScale: new THREE.Vector2(.55, .55),
-    roughness: .86, metalness: 0, envMapIntensity: .24,
-    sheen: .5, sheenRoughness: .55, sheenColor: new THREE.Color(0x6e7082),
-  });
+  const rimShared = { rimColor: { value: new THREE.Color(0xff9fbe) } };
+  const cloth = (map, normalMap) => {
+    const m = new THREE.MeshPhysicalMaterial({
+      map, normalMap, normalScale: new THREE.Vector2(.8, .8),
+      roughness: .9, metalness: 0, envMapIntensity: .3,
+      sheen: .22, sheenRoughness: .6, sheenColor: new THREE.Color(0x6e7082),
+      emissive: 0xffffff, emissiveIntensity: .1,
+    });
+    // Three tweaks to the stock shader: textures are read a little finer than the mip level asks for,
+    // which is what keeps a print sharp; a share of the photo's own colour comes through untouched by
+    // the coloured lights; and the tint sits only on the very edge, like light wrapping round cloth.
+    m.onBeforeCompile = sh => {
+      sh.uniforms.rimColor = rimShared.rimColor;
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 rimColor;')
+        .replace('#include <map_fragment>', 'vec4 sampledDiffuseColor = texture2D( map, vMapUv, -1.1 );\ndiffuseColor *= sampledDiffuseColor;')
+        .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace('texture2D( normalMap, vNormalMapUv )', 'texture2D( normalMap, vNormalMapUv, -.6 )'))
+        .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance *= sampledDiffuseColor.rgb;')
+        .replace('#include <opaque_fragment>', 'float edge = pow( 1. - saturate( dot( normalize( normal ), normalize( vViewPosition ) ) ), 3.4 );\noutgoingLight += rimColor * edge * .42;\n#include <opaque_fragment>');
+    };
+    return m;
+  };
   const parts = new Map();
   const loadParts = name => {
     if (parts.has(name)) return parts.get(name);
     const b = `img/hero/${name}`;
     const job = Promise.all([
       fetch(`${b}.bin?v=${VER}`).then(r => { if (!r.ok) throw new Error(b); return r.arrayBuffer(); }),
-      load(`${b}-front.webp?v=${VER}`, true), load(`${b}-front-n.webp?v=${VER}`),
-      load(`${b}-back.webp?v=${VER}`, true), load(`${b}-back-n.webp?v=${VER}`),
+      load(`${b}-front${SMALL}.webp?v=${VER}`, true), load(`${b}-front-n.webp?v=${VER}`),
+      load(`${b}-back${SMALL}.webp?v=${VER}`, true), load(`${b}-back-n.webp?v=${VER}`),
     ]).then(([buf, fc, fn, bc, bn]) => {
       const { body, cap, W } = garmentGeometry(buf, H, SIZE[name]);
       const mats = [cloth(fc, fn), cloth(bc, bn)];
@@ -307,7 +334,7 @@ async function start() {
       const hex = parseInt(SIZE[name].inner.slice(1), 16);
       const pale = ((hex >> 16) + (hex >> 8 & 255) + (hex & 255)) / 3 / 255 / .34;
       const gain = clamp(1 - (pale - .45) * 1.25, .5, 1);
-      mats.forEach(m => { m.color.setScalar(gain); m.sheenColor.multiplyScalar(gain); });
+      mats.forEach(m => { m.color.setScalar(gain); m.sheenColor.multiplyScalar(gain); m.emissiveIntensity *= gain; });
       return { body, cap, W, mats, inside: new THREE.MeshStandardMaterial({ color: SIZE[name].inner, roughness: 1, envMapIntensity: .1 }) };
     });
     parts.set(name, job);
@@ -316,7 +343,9 @@ async function start() {
   async function garment(name) {
     const { body, cap, W, mats, inside } = await loadParts(name);
     const g = new THREE.Group();
-    g.add(new THREE.Mesh(body, mats), new THREE.Mesh(cap, inside));
+    const shell = new THREE.Mesh(body, mats);
+    shell.castShadow = shell.receiveShadow = true;
+    g.add(shell, new THREE.Mesh(cap, inside));
     g.userData.w = W;
     return g;
   }
@@ -330,39 +359,46 @@ async function start() {
   scene.add(rig);
 
   /* chrome wordmark ring */
-  const chrome = new THREE.MeshStandardMaterial({ color: 0xf4f5fb, metalness: 1, roughness: .055 });
+  // Letter faces stay bright and the walls stay dark, so the name reads at a glance over any garment.
+  const chrome = [
+    new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: .78, roughness: .17, emissive: 0xd4d7f4, emissiveIntensity: .5 }),
+    new THREE.MeshStandardMaterial({ color: 0x4a4f86, metalness: 1, roughness: .28 }),
+  ];
+  const chromeLine = new THREE.MeshStandardMaterial({ color: 0xf4f5fb, metalness: 1, roughness: .08 });
+  const FLAT = .55;
   const R = 9.1;
   const band = (radius, y) => {
-    const t = new THREE.Mesh(new THREE.TorusGeometry(radius, .032, 10, 240), chrome);
+    const t = new THREE.Mesh(new THREE.TorusGeometry(radius, .03, 10, 240), chromeLine);
     t.rotation.x = Math.PI / 2; t.position.y = y;
+    t.scale.y = FLAT;                              // torus lies in its own xy plane, so y is depth here
     return t;
   };
   const ringWide = new THREE.Group();
   {
     const cap = 1.02;
-    const word = arc('TRUE OFFLINE', { R, cap, mat: chrome, lean: .3 });
+    const word = arc('TRUE OFFLINE', { R, cap, mat: chrome, lean: .1, flat: FLAT });
     ringWide.add(word, band(R, -.17));
-    ringWide.userData.half = word.userData.half + .2;
+    ringWide.userData.half = word.userData.half + .27;
     const sideStar = starGeometry(1.15, .14);
     [-1, 1].forEach(s => {
-      const a = s * (word.userData.half + .2);
+      const a = s * (word.userData.half + .27);
       const m = new THREE.Mesh(sideStar, chrome);
-      m.position.set(Math.sin(a) * R, cap * .42, Math.cos(a) * R);
-      m.rotation.y = a * .5;
+      m.position.set(Math.sin(a) * R, cap * .42, Math.cos(a) * R * FLAT);
+      m.rotation.y = a * .2;
       ringWide.add(m);
     });
   }
   const ringTall = new THREE.Group();            // phones: the wordmark stacks on two arcs
   {
     const RT = 6.4;
-    ringTall.add(arc('TRUE', { R: RT, cap: 1.06, y: 1.28, mat: chrome, lean: .35 }));
-    ringTall.add(arc('OFFLINE', { R: RT, cap: 1.06, mat: chrome, lean: .35 }));
+    ringTall.add(arc('TRUE', { R: RT, cap: 1.06, y: 1.28, mat: chrome, lean: .12, flat: FLAT }));
+    ringTall.add(arc('OFFLINE', { R: RT, cap: 1.06, mat: chrome, lean: .12, flat: FLAT }));
     ringTall.add(band(RT, -.17));
     ringTall.userData.R = RT;
   }
   const ringTilt = new THREE.Group();
   ringTilt.add(ringWide, ringTall);
-  const TILT = .165, DROP = -1.0;
+  const TILT = .085, DROP = -2.05;
   ringTilt.rotation.set(TILT, 0, -.05);
   ringTilt.position.y = DROP;
   rig.add(ringTilt);
@@ -377,7 +413,7 @@ async function start() {
   const OR = 9.8;
   const orbitStar = starGeometry(1.5, .2);
   [
-    [chrome, 0, 1],
+    [chromeLine, 0, 1],
     [new THREE.MeshStandardMaterial({ color: COBALT, metalness: .85, roughness: .22, emissive: COBALT, emissiveIntensity: .9 }), .13, .9],
     [new THREE.MeshStandardMaterial({ color: VIOLET, metalness: .85, roughness: .25, emissive: VIOLET, emissiveIntensity: .7 }), .25, .8],
   ].forEach(([mat, lag, sc]) => {
@@ -442,11 +478,18 @@ async function start() {
   }
 
   /* light on the fabric */
-  const key = new THREE.DirectionalLight(0xfff2ea, 3.5); key.position.set(-5, 9, 11); scene.add(key);
-  const rimA = new THREE.DirectionalLight(0x3a62ff, 3.2); rimA.position.set(14, 1, -1); scene.add(rimA);
-  const rimB = new THREE.DirectionalLight(SAKURA, 2.2); rimB.position.set(-14, 4, -1); scene.add(rimB);
-  const under = new THREE.DirectionalLight(0xff8fb6, .5); under.position.set(0, -10, 5); scene.add(under);
-  scene.add(new THREE.AmbientLight(0xb0a8b8, .38));
+  const key = new THREE.DirectionalLight(0xfff6ee, 2.9); key.position.set(-5, 9, 13); scene.add(key);
+  key.castShadow = !coarse;
+  key.shadow.mapSize.set(2048, 2048);
+  Object.assign(key.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 4, far: 34 });
+  key.shadow.radius = 7;
+  key.shadow.bias = -.0006;
+  key.shadow.normalBias = .05;
+  const fill = new THREE.DirectionalLight(0xdfe4ff, .9); fill.position.set(8, 2, 10); scene.add(fill);
+  const backFill = new THREE.DirectionalLight(0xfff0f4, 2.1); backFill.position.set(4, 6, -12); scene.add(backFill);
+  const rimA = new THREE.DirectionalLight(0x3a62ff, .5); rimA.position.set(14, 1, -1); scene.add(rimA);
+  const rimB = new THREE.DirectionalLight(SAKURA, .4); rimB.position.set(-14, 4, -1); scene.add(rimB);
+  scene.add(new THREE.AmbientLight(0xc4bdc9, .55));
 
   /* space */
   const nebula = glow([[0, 'rgba(64,30,130,.2)'], [.4, 'rgba(34,20,90,.09)'], [1, 'rgba(0,0,0,0)']], 60, [3, 2, -18]);
@@ -470,9 +513,9 @@ async function start() {
     const pivot = new THREE.Group();
     pivot.visible = false;
     const wordRing = new THREE.Group();
-    wordRing.add(arc(word, { R: 8, cap: 1.2, mat: chrome, lean: .5 }));
+    wordRing.add(arc(word, { R: 8, cap: 1.04, mat: chrome, lean: .1, flat: FLAT }));
     const tilt = new THREE.Group();
-    tilt.rotation.set(TILT, 0, 0); tilt.position.y = DROP - .55;
+    tilt.rotation.set(TILT, 0, 0); tilt.position.y = -3.75;
     tilt.add(wordRing);
     pivot.add(tilt);
     gallery.add(pivot);
@@ -532,7 +575,7 @@ async function start() {
   const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
   const composer = new EffectComposer(renderer, target);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .17, .55, 1.02);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .15, .55, 1.3);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   const finish = new ShaderPass(Finish);
@@ -556,7 +599,7 @@ async function start() {
     // for the ring size that keeps both ends on screen, with room for the ring's slow sway.
     if (!portrait) {
       const a = ringWide.userData.half, k = .86 * tan * camera.aspect;
-      ringWide.scale.setScalar(Math.min(1, (k * fitD) / (R * Math.sin(a) + k * R * Math.cos(a))));
+      ringWide.scale.setScalar(Math.min(1.06, (k * fitD) / (R * Math.sin(a) + k * R * FLAT * Math.cos(a))));
     }
     // On phones the arcs scale to the screen, so the full wordmark always fits and reads.
     if (portrait) {
@@ -646,7 +689,7 @@ async function start() {
 
   const introing = document.documentElement.classList.contains('intro');
   const begin = Math.max(performance.now(), introing ? 1020 : 0);
-  let orbitAngle = 1, samples = 0, slow = 0, tuned = false, showTime = 0, inGalleryNow = false;
+  let orbitAngle = 1, samples = 0, slow = 0, tuned = false, showTime = 0, inGalleryNow = false, sp = 0, sPos = 0;
   const tint = new THREE.Color(0xff9fbe), tmp = new THREE.Color();
 
   function frame(now) {
@@ -658,12 +701,17 @@ async function start() {
 
     const hr = hero.getBoundingClientRect(), tr = turn.getBoundingClientRect();
     const span = hr.height - innerHeight;
-    const p = calm || span <= 0 ? 0 : clamp(-hr.top / span);
-    const pos = clamp(-tr.top / (tr.height - innerHeight)) * STOPS.length;
+    // Scroll is eased here too, so a notched wheel or a jump still glides through the 3D.
+    const rawP = calm || span <= 0 ? 0 : clamp(-hr.top / span);
+    const rawPos = clamp(-tr.top / (tr.height - innerHeight)) * STOPS.length;
+    sp += (rawP - sp) * (calm ? 1 : damp(11, dt)); sPos += (rawPos - sPos) * (calm ? 1 : damp(11, dt));
+    if (Math.abs(rawP - sp) < .0004) sp = rawP;
+    if (Math.abs(rawPos - sPos) < .0006) sPos = rawPos;
+    const p = sp, pos = sPos;
     const dive = smooth(.04, .9, p);
     const inGallery = p >= .985;
 
-    px += (tx - px) * .07; py += (ty - py) * .07;
+    px += (tx - px) * damp(5, dt); py += (ty - py) * damp(5, dt);
     inGalleryNow = inGallery;
 
     // how fast the pointer is moving through the scene, in world units a second
@@ -677,16 +725,16 @@ async function start() {
     gust += (Math.min(1, Math.abs(wvx) / 26) - gust) * .06;
 
     if (!drag) {
-      extra += spin; spin *= .94;
-      tiltX *= .94;
-      if (now - idleAt > 1600 && Math.abs(spin) < .002) extra += (Math.round(extra / (Math.PI * 2)) * Math.PI * 2 - extra) * .035;
+      extra += spin * dt * 60; spin *= Math.exp(-dt * 3.4);
+      tiltX *= Math.exp(-dt * 3);
+      if (now - idleAt > 1600 && Math.abs(spin) < .002) extra += (Math.round(extra / (Math.PI * 2)) * Math.PI * 2 - extra) * damp(1.8, dt);
     }
 
     // swapping the piece: one fast turn, changing garment at the far side
     let swapSpin = 0, swapScale = 1;
     if (swap) {
-      swap.t = Math.min(1, swap.t + dt / 1.05);
-      swapSpin = inOut(swap.t) * Math.PI * 2;
+      swap.t = Math.min(1, swap.t + dt / 1.3);
+      swapSpin = silk(swap.t) * Math.PI * 2;
       swapScale = 1 - Math.sin(Math.PI * swap.t) * .14;
       if (!swap.done && swap.t >= .5) {
         swap.done = true;
@@ -702,8 +750,8 @@ async function start() {
     if (!inGallery) {
       // It shows its back, turns to show the front, then comes back round: both sides, little edge-on.
       if (!calm && !drag) showTime += dt * (1 - dive);
-      const c = showTime % 13, turns = Math.floor(showTime / 13);
-      const a = c < 7 ? 0 : c < 8.1 ? inOut((c - 7) / 1.1) : c < 11.9 ? 1 : 1 + inOut((c - 11.9) / 1.1);
+      const c = showTime % 14, turns = Math.floor(showTime / 14);
+      const a = c < 6.2 ? 0 : c < 8 ? silk((c - 6.2) / 1.8) : c < 12.2 ? 1 : 1 + silk((c - 12.2) / 1.8);
       const shown = (turns * 2 + a) * Math.PI;
       const homeBack = Math.round(shown / (Math.PI * 2)) * Math.PI * 2;
       const sway = calm ? .22 : Math.sin(t * .42) * .26 * (1 - dive);
@@ -741,22 +789,23 @@ async function start() {
         const dist = Math.abs(local - .5);
         if (dist < bestV) { bestV = dist; best = i; }
         if (!on) return;
-        const en = i === 0 ? 1 : inOut(clamp((local + .16) / .32));
-        const lv = i === STOPS.length - 1 ? 0 : inOut(clamp((local - .84) / .32));
-        const turnT = inOut(clamp((local - .08) / .5));
+        const en = i === 0 ? 1 : silk(clamp((local + .16) / .32));
+        const lv = i === STOPS.length - 1 ? 0 : silk(clamp((local - .84) / .32));
+        const turnT = silk(clamp((local - .06) / .46));
         s.body.rotation.y = turnT * Math.PI + (1 - en) * -1.3 + lv * 1.3 + (calm ? Math.PI : 0) + extra + Math.sin(t * .5) * .05 + px * .5;
         s.body.rotation.x = py * .18 + tiltX;
-        s.body.position.set((1 - en) * viewW * .95 - lv * viewW * .95, Math.sin(t * .8 + i) * .07, 0);
+        s.body.position.set((1 - en) * viewW * .95 - lv * viewW * .95, .42 + Math.sin(t * .8 + i) * .06, 0);
         s.wordRing.rotation.y = (1 - en) * 1.7 - lv * 1.7 + px * .1;
         s.tilt.scale.setScalar(portrait ? clamp(viewW / 15.5, .5, 1) : 1);
       });
       tmp.copy(stops[best].tint);
-      tint.lerp(tmp, .08);
+      tint.lerp(tmp, damp(4, dt));
     }
-    if (!inGallery) tint.lerp(heroTint, .08);
+    if (!inGallery) tint.lerp(heroTint, damp(4, dt));
     halo.material.color.copy(tint);
     halo.scale.setScalar(portrait ? .72 : 1);
     rimB.color.copy(tint);
+    rimShared.rimColor.value.copy(tint);
 
     // chrome highlights travel: the studio turns slowly around the letters
     scene.environmentRotation.y = t * .22 + px * .7;
@@ -785,7 +834,7 @@ async function start() {
     const wind = .34 + px * 1.1, rush = dive * (inGallery ? 0 : 11);
     const half = viewW * .72;
     if (pointerOn) aim(mx, my);
-    const damp = Math.exp(-dt * 1.9), PUSH = 2.5;
+    const fade = Math.exp(-dt * 1.9), PUSH = 2.5;
     for (let i = 0; i < N; i++) {
       const q = P[i];
       if (!calm) {
@@ -799,7 +848,7 @@ async function start() {
             q.vy += (dy / d * 30 + wvy * 2.2) * f * dt;
           }
         }
-        q.vx *= damp; q.vy *= damp; q.vz *= damp;
+        q.vx *= fade; q.vy *= fade; q.vz *= fade;
         q.y += (q.vy - q.fall) * dt;
         q.x += (wind + q.vx + Math.sin(t * q.f + q.ph) * q.a) * dt;
         q.z += (Math.cos(t * q.f * .7 + q.ph) * .22 + rush + q.vz) * dt;
@@ -828,7 +877,7 @@ async function start() {
       samples++; if (dt > .03) slow++;
       if (samples === 90) {
         tuned = true;
-        if (slow > 40) { dpr = 1; bloom.enabled = false; resize(); }
+        if (slow > 40) { dpr = Math.min(dpr, 1.25); key.castShadow = false; bloom.enabled = false; resize(); }
       }
     }
     if (!calm) requestAnimationFrame(frame);
@@ -865,7 +914,15 @@ async function start() {
     last = n; frame(n);
     canvas.classList.add('on');
     document.documentElement.dataset.hero = 'ready';
-    loadStops().then(() => {
+    loadStops().then(async () => {
+      // Hand the textures to the GPU one per frame now, so scrolling or picking never pays for it later.
+      for (const job of parts.values()) {
+        const { mats } = await job;
+        for (const m of mats) for (const t of [m.map, m.normalMap]) {
+          renderer.initTexture(t);
+          await new Promise(r => requestAnimationFrame(r));
+        }
+      }
       document.documentElement.dataset.stops = 'ready';
       if (calm) requestAnimationFrame(frame);
     }).catch(err => console.warn('featured pieces', err));
