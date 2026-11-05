@@ -271,7 +271,7 @@ async function start() {
   const canvas = document.querySelector('[data-gl]');
   const wrap = canvas.parentNode;
   const hero = document.querySelector('#hero'), turn = document.querySelector('#turn');
-  const fadeEl = document.querySelector('[data-hero-fade]'), foot = document.querySelector('[data-hero-foot]');
+  const foot = document.querySelector('[data-hero-foot]');
   const turnPin = document.querySelector('.turn-pin');
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: LITE, powerPreference: 'high-performance' });
@@ -582,16 +582,15 @@ async function start() {
     for (const m of list) edge = Math.max(edge, Math.abs(m.userData.letter.a));
     list.forEach((m, i) => {
       const L = m.userData.letter;
-      // from the middle outward, each letter lifts away past the lens
+      // from the middle outward, the letters slip away in one wave
       const rank = Math.abs(L.a) / edge;
-      const away = silk(clamp((exit * 2.5 - rank * .55) / .85));
+      const away = silk(clamp((exit * 2.6 - rank * .6) / .9));
       const up = silk(clamp(rise * 1.6 - (i / n) * .6));
       m.visible = away < .995 && up > .004;
       if (!m.visible) return;
       if (away > 0 || up < 1) {
-        const side = L.a >= 0 ? 1 : -1, turn = i % 2 ? 1 : -1;
-        m.position.set(L.x + side * away * (3 + rank * 7), L.y + away * turn * (1 + rank * 1.6) - (1 - up) * 3.4, L.z + away * 11);
-        m.rotation.set(away * turn * 1.9, L.ry + away * side * 1.5, away * turn * .5);
+        m.position.set(L.x, L.y - away * 7 - (1 - up) * 3.4, L.z);
+        m.rotation.set(0, L.ry, 0);
         m.scale.setScalar(1);
         return;
       }
@@ -776,7 +775,7 @@ async function start() {
   // Only touch the page when a value really changes, so a frame costs the browser nothing it can avoid.
   const wrote = new Map();
   const set = (el, k, v) => {
-    const key2 = k + (el === fadeEl ? 0 : el === foot ? 1 : 2);
+    const key2 = k + (el === foot ? 1 : 2);
     if (wrote.get(key2) === v) return;
     wrote.set(key2, v);
     el.style[k] = v;
@@ -790,17 +789,23 @@ async function start() {
     const inn = expoOut(e);
 
     const hr = hero.getBoundingClientRect(), tr = turn.getBoundingClientRect();
-    const span = hr.height - innerHeight;
+    // Never innerHeight here: on phones it changes as the address bar slides, which would jolt the
+    // whole timeline just as you stop scrolling. The stage height never changes.
+    const stageH = wrap.clientHeight;
+    const span = hr.height - stageH;
     // Scroll is eased here too, so a notched wheel or a jump still glides through the 3D.
     const rawP = calm || span <= 0 ? 0 : clamp(-hr.top / span);
     if (rawP > .02) wantStops();
-    const rawPos = clamp(-tr.top / (tr.height - innerHeight)) * STOPS.length;
+    const rawPos = clamp(-tr.top / (tr.height - stageH)) * STOPS.length;
     sp += (rawP - sp) * (calm ? 1 : damp(11, dt)); sPos += (rawPos - sPos) * (calm ? 1 : damp(11, dt));
     if (Math.abs(rawP - sp) < .0004) sp = rawP;
     if (Math.abs(rawPos - sPos) < .0006) sPos = rawPos;
     const p = sp, pos = sPos;
-    const dive = silk(clamp((p - .015) / .955));
-    const inGallery = p >= .985 || (calm && rawPos > 0);
+    // Beat one turns the hoodie, beat two rests on the back, beat three hands over to the showcases.
+    // The camera never gets closer than the photos stay sharp, and there is no cut: one continuous move.
+    const dive = silk(clamp((p - .015) / .6));
+    const out = calm ? (rawPos > 0 ? 1 : 0) : silk(clamp((p - .78) / .22));
+    const inGallery = out > 0;
 
     px += (tx - px) * damp(5, dt); py += (ty - py) * damp(5, dt);
     inGalleryNow = inGallery;
@@ -835,12 +840,14 @@ async function start() {
       if (swap.t >= 1) { swap = null; swapSpin = 0; }
     }
 
-    rig.visible = trees.visible = !inGallery;
+    rig.visible = out < 1;
+    trees.visible = dive < 1;
     gallery.visible = inGallery;
 
-    if (!inGallery) {
+    if (out < 1) {
       // It shows its back, turns to show the front, then comes back round: both sides, little edge-on.
-      if (!calm && !drag) showTime += dt * (1 - smooth(0, .03, p));
+      // The automatic turn stops the moment scrolling starts, so the landing point can never shift.
+      if (!calm && !drag && p < .001) showTime += dt;
       const c = showTime % 14, turns = Math.floor(showTime / 14);
       const a = c < 6.2 ? 0 : c < 8 ? silk((c - 6.2) / 1.8) : c < 12.2 ? 1 : 1 + silk((c - 12.2) / 1.8);
       const shown = (turns * 2 + a) * Math.PI;
@@ -848,24 +855,24 @@ async function start() {
       const lean = 1 - smooth(0, .3, dive);
       const sway = calm ? .22 : Math.sin(t * .42) * .26 * lean;
       // Scrolling winds it through a full turn that lands square on the back print.
-      const wind2 = silk(clamp(dive / .64));
-      hoodie.rotation.y = Math.PI + lerp(shown, homeBack + Math.PI * 2, wind2) + sway + extra * lean + (1 - inn) * -Math.PI * 1.2 + px * .55 * lean + swapSpin;
+      const leave = -out * 1.3;                    // the hero leaves on the same carousel the others ride
+      hoodie.rotation.y = Math.PI + lerp(shown, homeBack + Math.PI * 2, dive) + sway + extra * lean + (1 - inn) * -Math.PI * 1.2 + px * .55 * lean + swapSpin + leave * 1.15;
       hoodie.rotation.x = (py * .2 + tiltX) * lean;
-      hoodie.position.x = px * .4 * lean;
+      hoodie.position.x = px * .4 * lean + Math.sin(leave) * viewW * .82;
+      hoodie.position.z = (Math.cos(leave) - 1) * 15;
       hoodie.position.y = lerp(-13, .05, inn) + Math.sin(t * .8) * .09 * lean - py * .2 * lean;
       hoodie.rotation.z = Math.sin(t * .55) * .012 - px * .03 * lean;
       hoodie.scale.setScalar(swapScale);
 
-      if (!calm) orbitAngle += dt * (.34 + (1 - inn) * 1.6 + dive * 2.6);
+      if (!calm) orbitAngle += dt * (.34 + (1 - inn) * 1.6 + dive * .9);
       orbit.rotation.y = orbitAngle;
       // the ring swings in, then rests facing you so the words can be read
       const swing = (1 - inn) * -2.2 + Math.sin(t * .31) * .05 + px * .16;
       ringWide.rotation.y = ringTall.rotation.y = swing;
-      const open = 1 + dive * dive * 2.2;
-      ringTilt.visible = dive < .8;
-      ringTilt.scale.set(open * lerp(1.5, 1, inn), 1, open * lerp(1.5, 1, inn));
-      ringTilt.rotation.x = TILT - dive * .22;
-      ringTilt.position.y = (portrait ? -3.5 : DROP) - dive * 1.6;
+      ringTilt.visible = dive < .95;
+      ringTilt.scale.set(lerp(1.5, 1, inn), 1, lerp(1.5, 1, inn));
+      ringTilt.rotation.x = TILT;
+      ringTilt.position.y = (portrait ? -3.5 : DROP) - silk(clamp(dive / .6)) * 9;
       rig.position.y = portrait ? .85 * (1 - dive) : 0;
       orbitTilt.scale.setScalar(lerp(1.6, 1, inn) + dive * .7);
       rig.rotation.y = px * .16;
@@ -877,7 +884,8 @@ async function start() {
       trees.position.y = (1 - inn) * 5 + part * 4;
       treeL.position.x = treeL.userData.x - part * 7;
       treeR.position.x = treeR.userData.x + part * 7;
-    } else {
+    }
+    if (inGallery) {
       let best = 0, bestV = 9;
       stops.forEach((s, i) => {
         const local = pos - i;
@@ -886,17 +894,15 @@ async function start() {
         const dist = Math.abs(local - .5);
         if (dist < bestV) { bestV = dist; best = i; }
         if (!on) return;
-        const en = i === 0 ? 1 : silk(clamp((local + .16) / .32));
+        const en = i === 0 ? out : silk(clamp((local + .16) / .32));
         const lv = i === STOPS.length - 1 ? 0 : silk(clamp((local - .84) / .32));
-        // The first piece comes up out of the dark, spinning, from the other side of the dive.
-        const arrive = i === 0 && !calm ? silk(clamp(local / .44)) : 1;
-        const turnT = silk(clamp((local - (i ? .06 : .24)) / .46));
+        const turnT = silk(clamp((local - .06) / .46));
         // Pieces ride a wide carousel: in from one side, round and away out of the other.
         const th = (1 - en) * 1.3 - lv * 1.3;
-        s.body.rotation.y = turnT * Math.PI + th * 1.15 + (1 - arrive) * -Math.PI * 2.4 + (calm ? Math.PI : 0) + extra + Math.sin(t * .5) * .05 + px * .5;
+        s.body.rotation.y = turnT * Math.PI + th * 1.15 + (calm ? Math.PI : 0) + extra + Math.sin(t * .5) * .05 + px * .5;
         s.body.rotation.x = py * .18 + tiltX;
-        s.body.position.set(Math.sin(th) * viewW * .82, .42 + Math.sin(t * .8 + i) * .06 - (1 - arrive) * 1.2, (Math.cos(th) - 1) * 15 - (1 - arrive) * 32);
-        s.rise = Math.min(arrive, en) * (1 - lv);
+        s.body.position.set(Math.sin(th) * viewW * .82, .42 + Math.sin(t * .8 + i) * .06, (Math.cos(th) - 1) * 15);
+        s.rise = en * (1 - lv);
         s.tilt.scale.setScalar(portrait ? clamp(viewW / 15.5, .5, 1) : 1);
       });
       tmp.copy(stops[best].tint);
@@ -904,7 +910,7 @@ async function start() {
     }
     if (!inGallery) tint.lerp(heroTint, damp(4, dt));
     halo.material.color.copy(tint);
-    halo.scale.setScalar((portrait ? .72 : 1) * (inGallery ? 1 : 1 + dive * 1.5));
+    halo.scale.setScalar((portrait ? .72 : 1) * (1 + dive * .35 * (1 - out)));
     rimB.color.copy(tint);
     rimShared.rimColor.value.copy(tint);
 
@@ -914,43 +920,36 @@ async function start() {
     nebula.rotation.z = t * .012;
     far.rotation.y = t * .004; near.rotation.y = -t * .009;
 
-    // Camera: swings round the turning hoodie and closes on the print at a constant felt speed,
-    // straight through the fabric, then settles for the featured pieces.
-    // Three beats: swing in while it turns, hold on the print so it can be seen, then plunge.
-    const hold = portrait ? fitD * .6 : 7.6, near2 = hold * .8;
-    const geo = (a, b, k) => a * Math.pow(b / a, k);
-    const plunge = clamp((dive - .86) / .14);
-    const z = inGallery ? fitD * (portrait ? 1.02 : .98)
-      : plunge > 0 ? geo(near2, 1.5, plunge * plunge)
-      : dive > .62 ? lerp(hold, near2, smooth(.62, .86, dive))
-      : geo(fitD, hold, silk(dive / .62));
+    // Camera: a slow arc round the turning hoodie, easing in only as far as the print stays crisp,
+    // then back out to the showcase framing. Everything is one blend, so nothing can jump.
+    const zHero = fitD * Math.pow(portrait ? .8 : .74, dive);
+    const z = lerp(zHero, fitD * (portrait ? 1.02 : .98), out);
     scene.fog.near = z + 1.5; scene.fog.far = z + 24;
-    if (inGallery) {
-      camera.up.set(0, 1, 0);
-      camera.position.set(px * .9, .3 - py * .5, z);
-      camera.lookAt(0, portrait ? -.2 : -.5, 0);
-    } else {
-      const sweep = Math.min(1, dive / .66);
-      const arc = Math.sin(Math.PI * sweep) * .46, still = 1 - dive;
-      const roll = Math.sin(Math.PI * sweep) * .07;
+    {
+      const arc = Math.sin(Math.PI * dive) * .24, still = 1 - dive;
+      const roll = Math.sin(Math.PI * dive) * .03 * (1 - out);
       camera.up.set(Math.sin(roll), Math.cos(roll), 0);
-      const lift = silk(Math.min(1, dive / .62));
-      camera.position.set(Math.sin(arc) * z + px * 1.1 * still, lerp(.5, .22, lift) - py * .6 * still, Math.cos(arc) * z);
-      camera.lookAt(0, lerp(portrait ? -.2 : -.62, .22, lift), 0);
+      camera.position.set(
+        lerp(Math.sin(arc) * z + px * 1.1 * still, px * .9, out),
+        lerp(lerp(.5, .2, dive) - py * .6 * still, .3 - py * .5, out),
+        lerp(Math.cos(arc) * z, z, out),
+      );
+      const lookHero = lerp(portrait ? -.2 : -.62, .1, dive);
+      camera.lookAt(0, lerp(lookHero, portrait ? -.2 : -.5, out), 0);
     }
 
     camera.updateMatrixWorld();
     if (!calm) {
       if (inGallery) { for (const s of stops) if (s.pivot.visible) reactLetters(s.letters, dt, pw, ph, 0, s.rise); }
-      else if (dive < .8) reactLetters(liveLetters(), dt, pw, ph, dive);
+      if (dive < .95) reactLetters(liveLetters(), dt, pw, ph, portrait ? 0 : dive);   // stacked lines leave as one block
     }
 
     // petals: drift and tumble, swerve round the pointer, and on the dive stream past the lens
-    const wind = .34 + px * 1.1, rush = dive * (inGallery ? 0 : 11);
+    const wind = .34 + px * 1.1, rush = dive * (1 - out) * 2.5;
     const half = viewW * .72;
     if (pointerOn) aim(mx, my);
     const fade = Math.exp(-dt * 1.9), PUSH = 2.5;
-    const whirl = inGallery ? 0 : dive * 1.7 * dt;   // the petals are drawn into a slow vortex
+    const whirl = dive * (1 - out) * .5 * dt;        // the petals turn gently with the hoodie
     for (let i = 0; i < N_live; i++) {
       const q = P[i];
       if (!calm) {
@@ -981,13 +980,11 @@ async function start() {
       petals.setMatrixAt(i, px0.matrix);
     }
     petals.instanceMatrix.needsUpdate = true;
-    petals.count = inGallery ? Math.round(N_live * .4) : N_live;
+    petals.count = Math.round(N_live * lerp(1, .4, out));
 
-    // The moment of breaking through: the print blooms to light, and the dark on the far side opens.
-    set(fadeEl, 'opacity', (smooth(.925, .985, p) * (1 - smooth(.03, .24, pos))).toFixed(3));
     set(foot, 'opacity', (1 - smooth(.01, .1, p)).toFixed(3));
     set(foot, 'visibility', p > .1 ? 'hidden' : 'visible');
-    const overlay = calm ? 1 : smooth(.26, .5, pos);
+    const overlay = calm ? 1 : smooth(.955, 1, p);   // only once its section has stopped moving
     set(turnPin, 'opacity', overlay.toFixed(3));
     set(turnPin, 'visibility', overlay > 0 ? 'visible' : 'hidden');
 
@@ -1035,7 +1032,7 @@ async function start() {
   };
 
   // The page drives the piece picker through this.
-  window.TO_hero = { pick, state: () => ({ piece: PIECES[shownPiece][0], flips, bursts, spun: Math.abs(extra) + Math.abs(spin) }) };
+  window.TO_hero = { pick, state: () => ({ piece: PIECES[shownPiece][0], flips, bursts, spun: Math.abs(extra) + Math.abs(spin), p: sp, pos: sPos }) };
 
   // Compile everything before showing it, so the first visible frame does not hitch.
   await renderer.compileAsync(scene, camera);
@@ -1045,7 +1042,7 @@ async function start() {
     last = n; frame(n);
     canvas.classList.add('on');
     document.documentElement.dataset.hero = 'ready';
-    if (!LITE) wantStops();
+    if (!LITE) wantStops(); else setTimeout(wantStops, 4000);
   });
   if (calm) {
     addEventListener('resize', () => requestAnimationFrame(frame));

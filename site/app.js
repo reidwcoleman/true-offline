@@ -41,11 +41,18 @@
       lenis.scrollTo(el, { duration: 1.3 });
     });
   };
-  if (!calm && fine) {                       // phones never download it
-    const js = document.createElement('script');
-    js.src = 'lenis.js?v=' + document.documentElement.dataset.v;
-    js.onload = smooth;
-    document.head.append(js);
+  // Only a notched mouse wheel needs help. Trackpads and touch already glide and stop dead under the
+  // finger, and easing on top of that makes the page drift after you stop, so they stay native.
+  if (!calm && fine) {
+    const first = e => {
+      removeEventListener('wheel', first);
+      if (e.ctrlKey || e.deltaX || Math.abs(e.deltaY) < 50 || !Number.isInteger(e.deltaY)) return;
+      const js = document.createElement('script');
+      js.src = 'lenis.js?v=' + document.documentElement.dataset.v;
+      js.onload = smooth;
+      document.head.append(js);
+    };
+    addEventListener('wheel', first, { passive: true });
   }
 
   /* A garment "turning": cross-dissolve the two views while the width dips, so it reads as a
@@ -152,7 +159,7 @@
       ['2018-wc-faded-hoodie', 'Rooster', '#E2521C'],
       ['dirty-faded-flare-zip-hoodie', 'Dreamer', '#E9D3B0'],
     ].map(([s, word, tint]) => ({ p: bySlug(s), word, tint }));
-    const stage = $('[data-turn-stage]'), copy = $('[data-turn-copy]'), sec = $('#turn');
+    const stage = $('[data-turn-stage]'), copy = $('[data-turn-copy]'), sec = $('#turn'), pin = $('.turn-pin');
     const words = $('[data-turn-words]'), ticks = $('[data-ticks]');
     ticks.innerHTML = picks.map(() => '<i><b></b></i>').join('');
     const bars = $$('b', ticks);
@@ -178,7 +185,7 @@
     const paint = () => {
       const r = sec.getBoundingClientRect();
       if (r.top > innerHeight || r.bottom < 0) return;
-      const span = r.height - innerHeight;
+      const span = r.height - pin.offsetHeight;
       const pos = clamp(-r.top / span) * picks.length;
       show(Math.min(picks.length - 1, Math.floor(pos)));
       const flat = !document.documentElement.classList.contains('gl');
@@ -598,10 +605,11 @@
     }, { rootMargin: '-24px 0px -96% 0px' });
     $$('.shop,.facts').forEach(s => io.observe(s));
     // Tuck away while reading down the page, back on any scroll up.
+    if (!fine) { document.documentElement.classList.add('bar-up'); return; }   // on touch it simply stays put
     let y = scrollY;
     addEventListener('scroll', () => {
       const n = scrollY;
-      if (Math.abs(n - y) < 6) return;
+      if (Math.abs(n - y) < 28) return;
       const tuck = n > y && n > innerHeight * .5;
       bar.classList.toggle('tuck', tuck);
       document.documentElement.classList.toggle('bar-up', !tuck);

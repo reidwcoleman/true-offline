@@ -36,7 +36,7 @@ await p.mouse.move(glb.width * .8, glb.height * .4, { steps: 8 }); await p.mouse
 ok('dragging the hero does not scroll the page', (await p.evaluate(() => scrollY)) === 0);
 ok('cursor label says Drag to spin', await p.evaluate(() => document.querySelector('[data-cur]').textContent === 'Drag to spin'));
 await p.evaluate(() => scrollTo({ top: document.querySelector('#hero').offsetHeight - innerHeight, behavior: 'instant' })); await p.waitForTimeout(400);
-ok('scroll dive fades to black into the next section', await p.evaluate(() => +document.querySelector('[data-hero-fade]').style.opacity > .97));
+ok('no fade or flash between the hero and the showcases', await p.evaluate(() => !document.querySelector('[data-hero-fade]')));
 await p.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
 
 // the wordmark must be fully on screen: project the outermost letters to pixels
@@ -300,6 +300,14 @@ await ctx.close();
   let r = await stop();
   ok('touch: a swipe up on the 3D scrolls the page', r.to - r.from > 400, JSON.stringify(r));
   ok('touch: scrolling the 3D never pushes back', r.back === 0, JSON.stringify(r));
+  // the address bar sliding away changes innerHeight; the timeline must not feel it
+  await t.waitForTimeout(500);
+  const before = await t.evaluate(() => window.TO_hero.state());
+  await t.evaluate(() => { window.__ih = Object.getOwnPropertyDescriptor(window, 'innerHeight'); Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => 760 }); });
+  await t.waitForTimeout(500);
+  const after = await t.evaluate(() => window.TO_hero.state());
+  await t.evaluate(() => Object.defineProperty(window, 'innerHeight', window.__ih));
+  ok('touch: the address bar sliding does not move the animation', Math.abs(before.p - after.p) < .002 && Math.abs(before.pos - after.pos) < .002, JSON.stringify([before.p, after.p]));
   // the whole page, top to bottom, in long swipes
   await watch();
   for (let i = 0; i < 26; i++) { await swipe(195, 700, 0, -560, 1800); await t.waitForTimeout(40); }
@@ -325,6 +333,24 @@ await ctx.close();
   r = await stop();
   ok('touch: page scrolls when the swipe starts on a reel', r.to - r.from > 150, JSON.stringify(r));
   await tc.close();
+}
+
+// flick and stop: the 3D timeline must settle forward and never swing back
+{
+  const fc = await b.newContext({ viewport: { width: 1440, height: 900 } });
+  const f = await fc.newPage();
+  await f.goto(URL, { waitUntil: 'load' });
+  await f.waitForFunction(() => document.documentElement.dataset.stops === 'ready', null, { timeout: 25000 });
+  await f.waitForTimeout(600);
+  await f.mouse.move(700, 450);
+  await f.evaluate(() => { window.__ps = []; window.__on = true; const g = () => { const s = window.TO_hero.state(); window.__ps.push(s.p + s.pos); window.__on && requestAnimationFrame(g); }; g(); });
+  for (const n of [4, 3, 5, 2, 6]) {
+    for (let i = 0; i < n; i++) await f.mouse.wheel(0, 240);
+    await f.waitForTimeout(650);
+  }
+  const back = await f.evaluate(() => { window.__on = false; const y = window.__ps; let m = 0; for (let i = 1; i < y.length; i++) m = Math.max(m, y[i - 1] - y[i]); return { m, n: y.length, end: y[y.length - 1] }; });
+  ok('flick and stop: the animation never swings back', back.m < .0005 && back.end > .4, JSON.stringify(back));
+  await fc.close();
 }
 
 // desktop wheel: no backward jolts anywhere on the way down

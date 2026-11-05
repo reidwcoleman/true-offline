@@ -26,7 +26,7 @@ async function tour(p, n) {
   await shot(p, `${n}-front`);
   const m = await p.evaluate(() => ({ heroH: document.querySelector('#hero').offsetHeight - innerHeight, turn: document.querySelector('#turn').offsetTop, turnH: document.querySelector('#turn').offsetHeight - innerHeight, shop: document.querySelector('#shop').offsetTop, fit: document.querySelector('#fit').offsetTop }));
   const go = async (y, wait = 500) => { await p.evaluate(v => scrollTo({ top: v, behavior: 'instant' }), y); await p.waitForTimeout(wait); };
-  for (const [k, f] of [['a', .25], ['b', .45], ['c', .68], ['d', .86], ['e', .95]]) { await go(m.heroH * f, 900); await shot(p, `${n}-v${k}`); }
+  for (const [k, f] of [['a', .2], ['b', .4], ['c', .7], ['d', .88], ['e', .96]]) { await go(m.heroH * f, 900); await shot(p, `${n}-v${k}`); }
   await go(m.heroH + 8, 900); await shot(p, `${n}-vf`);
   await go(m.turn + m.turnH * .05, 900); await shot(p, `${n}-vg`);
   await go(m.turn + m.turnH * .03); await shot(p, `${n}-t0`);

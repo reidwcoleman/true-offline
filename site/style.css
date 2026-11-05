@@ -94,12 +94,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .hero{position:relative;height:100svh;background:var(--ink)}
 .hero-pin{position:sticky;top:0;height:100svh;min-height:620px;overflow:hidden;background:var(--grain),var(--ink);isolation:isolate}
 .gl-wrap{display:none}
-.gl .gl-wrap{display:block;position:sticky;top:0;height:100svh;min-height:620px;margin-bottom:calc(-1 * max(100svh,620px));z-index:0;background:var(--ink)}
+.gl .gl-wrap{display:block;position:sticky;top:0;height:100lvh;min-height:620px;margin-bottom:calc(-1 * max(100lvh,620px));z-index:0;background:var(--ink)}
 .gl-canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .5s linear;touch-action:pan-y;cursor:grab}
 .gl-canvas:active{cursor:grabbing}
 .gl .gl-canvas.on{opacity:1}
 .gl-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;max-width:none}
-.hero-fade{position:absolute;inset:0;background:radial-gradient(58% 58% at 50% 48%,#fff3f7,#ffb3cc 34%,#c73a78 62%,#14060f 100%);opacity:0;pointer-events:none}
 .gl .hero{height:300svh;background:none;z-index:1;pointer-events:none}
 .gl .hero-pin{background:none;pointer-events:none}
 .gl .hero-pin::before{display:none}
