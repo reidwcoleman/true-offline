@@ -225,13 +225,20 @@ const missing = await p.evaluate(async () => {
 });
 ok('all large images resolve', missing.length === 0, missing.join(' '));
 
+// section links glide to their section; product links stay routes
+await p.evaluate(() => { location.hash = ''; }); await p.waitForTimeout(800);
+await p.evaluate(() => scrollTo({ top: 0, behavior: 'instant' })); await p.waitForTimeout(500);
+await p.click('.bar-nav a[href="#fit"]'); await p.waitForTimeout(1900);
+ok('nav link reaches Build a fit', await p.evaluate(() => Math.abs(document.querySelector('#fit').getBoundingClientRect().top) < 4));
+
 // build a fit
 await p.evaluate(() => { location.hash = ''; }); await p.waitForTimeout(700);
 await p.evaluate(() => document.querySelector('#fit').scrollIntoView({ behavior: 'instant' })); await p.waitForTimeout(1000);
 const bill = () => p.evaluate(() => {
   const a = [...document.querySelectorAll('[data-fit-bill] a')].map(x => x.getAttribute('href').slice(2));
+  const img = document.querySelector('[data-row="top"] img').getAttribute('src');
   const pr = s => window.TO_PRODUCTS.find(x => x.slug === s).price;
-  const sum = document.querySelector('.fit-sum dd').textContent.trim();
+  const sum = document.querySelector('[data-fit-total]').textContent.trim();
   return { a, sum, want: '$' + (pr(a[0]) + pr(a[1])).toFixed(2) };
 });
 const b0 = await bill();

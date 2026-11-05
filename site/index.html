@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-v="17">
+<html lang="en" data-v="20">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,12 +8,14 @@
 <meta name="theme-color" content="#08080B">
 <meta property="og:title" content="True Offline">
 <meta property="og:description" content="Clothes for outside. Twenty pieces from Raleigh, NC.">
-<meta property="og:image" content="img/og.jpg">
+<meta property="og:image" content="https://reidwcoleman.github.io/true-offline/img/og.jpg">
+<meta property="og:url" content="https://reidwcoleman.github.io/true-offline/">
+<meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="img/star.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="preload" href="fonts/archivo-italic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=20">
 <script>
 /* The intro plays once per visit. It is pure CSS, so a script failure can never leave it covering the page. */
 (function () {
@@ -127,9 +129,13 @@
   <div class="fit-side">
     <h2 id="fit-h" class="mask"><span>Build<br>a fit.</span></h2>
     <p class="fit-sub rv">Swipe the top and the bottom until it works, or leave it to chance.</p>
-    <dl class="fit-bill" data-fit-bill></dl>
-    <button class="fit-shuffle" type="button" data-fit-shuffle data-magnet>Shuffle</button>
-    <p class="fit-small">Each piece checks out on its own Etsy listing.</p>
+    <div class="fit-card" data-fit-bill aria-live="polite">
+      <a class="fit-row" data-row="top" href="#/blossom-baggy-zip-hoodie"><span class="fit-thumb"><img alt="" width="48" height="58"></span><span class="fit-name"></span><span class="fit-price"></span></a>
+      <a class="fit-row" data-row="bottom" href="#/darks-barrel-fleece-sweatpants"><span class="fit-thumb"><img alt="" width="48" height="58"></span><span class="fit-name"></span><span class="fit-price"></span></a>
+      <p class="fit-sum"><span>Both</span><b data-fit-total></b></p>
+      <button class="fit-shuffle" type="button" data-fit-shuffle>Shuffle</button>
+      <p class="fit-small">Free shipping on both. Each piece checks out on its own Etsy listing.</p>
+    </div>
   </div>
   <div class="fit-stage" data-cursor="Drag">
     <div class="reel-wrap">
@@ -227,9 +233,9 @@
 
 <div class="cur" aria-hidden="true" data-cur></div>
 
-<script src="lenis.js?v=17"></script>
-<script src="data.js?v=17"></script>
-<script src="app.js?v=17"></script>
-<script src="hero.js?v=17" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
+<script src="lenis.js?v=20"></script>
+<script src="data.js?v=20"></script>
+<script src="app.js?v=20"></script>
+<script src="hero.js?v=20" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
 </body>
 </html>

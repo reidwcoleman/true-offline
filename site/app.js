@@ -27,9 +27,19 @@
   /* Wheel and trackpad scrolling glide. Touch keeps the phone's own scrolling, which is already smooth. */
   let lenis = null;
   if (!calm && fine && window.Lenis) {
-    lenis = new window.Lenis({ lerp: .115, wheelMultiplier: .95, anchors: { offset: 0 }, prevent: n => !!n.closest('[data-sheet],.reel') });
+    lenis = new window.Lenis({ lerp: .115, wheelMultiplier: .95, prevent: n => !!n.closest('[data-sheet]') });
     const run = t => { lenis.raf(t); requestAnimationFrame(run); };
     requestAnimationFrame(run);
+    // Section links glide too. Product links (#/slug) are routes, not places on the page.
+    document.addEventListener('click', e => {
+      const a = e.target.closest('a[href^="#"]');
+      const id = a && a.getAttribute('href').slice(1);
+      if (!id || id[0] === '/') return;
+      const el = document.getElementById(id);
+      if (!el) return;
+      e.preventDefault();
+      lenis.scrollTo(el, { duration: 1.3 });
+    });
   }
 
   /* A garment "turning": cross-dissolve the two views while the width dips, so it reads as a
@@ -244,6 +254,10 @@
         t.classList.add('in');
       });
       number();
+      // A shorter grid must not leave you stranded further down the page.
+      const bar = $('[data-line-bar]');
+      const top = grid.getBoundingClientRect().top + scrollY - bar.offsetHeight - (document.documentElement.classList.contains('bar-up') ? 82 : 24);
+      if (scrollY > top) { if (lenis) lenis.scrollTo(top, { immediate: true, force: true }); else scrollTo({ top, behavior: 'instant' }); }
     };
     const change = () => {
       if (!canMorph) return apply();
@@ -638,21 +652,75 @@
       top: P.filter(p => p.cat === 'Hoodies' || p.cat === 'Tops'),
       bottom: P.filter(p => p.cat === 'Sweats' || p.cat === 'Shorts'),
     };
-    const bill = $('[data-fit-bill]');
     const reels = {};
+    const totalEl = $('[data-fit-total]');
+    let shownTotal = 0, totalRaf = 0;
+    const count = to => {
+      cancelAnimationFrame(totalRaf);
+      if (calm || !shownTotal) { shownTotal = to; totalEl.textContent = money(to); return; }
+      const from = shownTotal, t0 = performance.now();
+      const step = n => {
+        const k = clamp((n - t0) / 380), e = 1 - Math.pow(1 - k, 3);
+        shownTotal = from + (to - from) * e;
+        totalEl.textContent = money(k < 1 ? shownTotal : to);
+        if (k < 1) totalRaf = requestAnimationFrame(step); else shownTotal = to;
+      };
+      totalRaf = requestAnimationFrame(step);
+    };
+    const row = (key, p) => {
+      const r = $(`[data-row="${key}"]`);
+      r.href = '#/' + p.slug;
+      $('img', r).src = src(p, 'front', firstColour(p), true);
+      $('.fit-name', r).textContent = p.name;
+      $('.fit-price', r).textContent = money(p.price);
+    };
     const render = () => {
       const t = reels.top.now(), b = reels.bottom.now();
-      bill.innerHTML = `<div><dt>Top</dt><dd><a class="ul" href="#/${t.slug}">${t.name}</a><span>${money(t.price)}</span></dd></div>
-        <div><dt>Bottom</dt><dd><a class="ul" href="#/${b.slug}">${b.name}</a><span>${money(b.price)}</span></dd></div>
-        <div class="fit-sum"><dt>Both</dt><dd><span></span><span>${money(t.price + b.price)}</span></dd></div>`;
+      row('top', t); row('bottom', b);
+      count(t.price + b.price);
+    };
+    /* Each cutout sits somewhere different in its frame. Measuring it lets every top end on the same
+       line and every bottom start on it, so any two pieces meet at the waist. */
+    const seat = (img, key) => {
+      try {
+        const c = document.createElement('canvas'); c.width = 40; c.height = 50;
+        const g = c.getContext('2d', { willReadFrequently: true });
+        g.drawImage(img, 0, 0, 40, 50);
+        const d = g.getImageData(0, 0, 40, 50).data;
+        const filled = y => { let n = 0; for (let x = 0; x < 40; x++) if (d[(y * 40 + x) * 4 + 3] > 60) n++; return n > 2; };
+        let y0 = 0, y1 = 49;
+        while (y0 < 49 && !filled(y0)) y0++;
+        while (y1 > 0 && !filled(y1)) y1--;
+        img.style.setProperty('--dy', (key === 'top' ? (49 - y1) / 50 * 100 : -y0 / 50 * 100).toFixed(1) + '%');
+      } catch (e) { /* the frame's own position is fine */ }
     };
     for (const key of ['top', 'bottom']) {
       const el = $(`[data-reel="${key}"]`), items = groups[key];
-      el.innerHTML = items.map((p, i) => `<button type="button" class="reel-i" role="option" aria-selected="false" aria-label="${p.name}" data-i="${i}" tabindex="-1"><img src="${src(p, 'front', firstColour(p))}" width="720" height="900" alt="" loading="lazy" draggable="false"></button>`).join('');
+      el.innerHTML = items.map((p, i) => `<button type="button" class="reel-i" role="option" aria-selected="false" aria-label="${p.name}" data-i="${i}" tabindex="-1"><img src="${src(p, 'front', firstColour(p))}" width="720" height="900" alt="" decoding="async" draggable="false"></button>`).join('');
       const cells = $$('.reel-i', el);
-      let at = -1, down = null, moved = false;
+      cells.forEach(c => {
+        const img = $('img', c);
+        if (img.complete && img.naturalWidth) seat(img, key); else img.addEventListener('load', () => seat(img, key), { once: true });
+      });
+      let at = -1, down = null, moved = false, gliding = 0, glideRaf = 0;
       const centre = i => cells[i].offsetLeft + cells[i].offsetWidth / 2 - el.clientWidth / 2;
-      const go = (i, smooth = !calm) => el.scrollTo({ left: centre(i), behavior: smooth ? 'smooth' : 'auto' });
+      // Snap is off while the reel moves itself, or the browser fights the easing.
+      const go = (i, smooth = !calm) => {
+        cancelAnimationFrame(glideRaf);
+        const to = centre(i), from = el.scrollLeft, dist = Math.abs(to - from);
+        if (!smooth || dist < 1) { el.classList.remove('moving'); gliding = 0; el.scrollLeft = to; return; }
+        const ms = clamp((360 + dist * .22) / 1000, .42, .95) * 1000, t0 = performance.now();
+        el.classList.add('moving'); gliding = 1;
+        const step = n => {
+          const k = clamp((n - t0) / ms), e = k * k * k * (k * (k * 6 - 15) + 10);
+          el.scrollLeft = from + (to - from) * e;
+          if (k < 1) { glideRaf = requestAnimationFrame(step); return; }
+          el.classList.remove('moving'); gliding = 0;
+          paint();
+          if (reels.top && reels.bottom) render();
+        };
+        glideRaf = requestAnimationFrame(step);
+      };
       const paint = () => {
         const mid = el.scrollLeft + el.clientWidth / 2;
         let best = 0, bd = 1e9;
@@ -660,14 +728,13 @@
           const d = (c.offsetLeft + c.offsetWidth / 2 - mid) / c.offsetWidth;
           if (Math.abs(d) < bd) { bd = Math.abs(d); best = i; }
           if (Math.abs(d) > 3) return;
-          const k = clamp(Math.abs(d));
-          c.style.setProperty('--k', k.toFixed(3));
+          c.style.setProperty('--k', clamp(Math.abs(d)).toFixed(3));
           c.style.setProperty('--d', clamp(d, -1, 1).toFixed(3));
         });
         if (best !== at) {
           at = best;
           cells.forEach((c, i) => c.setAttribute('aria-selected', i === at));
-          if (reels.top && reels.bottom) render();
+          if (!gliding && reels.top && reels.bottom) render();
         }
       };
       let tick = false;
@@ -676,21 +743,31 @@
         tick = true;
         requestAnimationFrame(() => { tick = false; paint(); });
       }, { passive: true });
-      // a mouse can grab the reel too; touch uses native scrolling
+      // A sideways swipe belongs to the reel, not to the page scroller.
+      el.addEventListener('wheel', e => { if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) e.stopPropagation(); }, { passive: true });
+      // a mouse can grab the reel too, and a flick carries on; touch uses native scrolling
       el.addEventListener('pointerdown', e => {
         if (e.pointerType === 'touch') return;
-        down = { x: e.clientX, left: el.scrollLeft, t: performance.now() }; moved = false;
+        cancelAnimationFrame(glideRaf); gliding = 0; el.classList.remove('moving');
+        down = { x: e.clientX, left: el.scrollLeft, lx: e.clientX, lt: e.timeStamp, v: 0 }; moved = false;
       });
       addEventListener('pointermove', e => {
         if (!down) return;
         const dx = e.clientX - down.x;
         if (Math.abs(dx) > 5 && !moved) { moved = true; el.classList.add('dragging'); }
-        if (moved) el.scrollLeft = down.left - dx;
+        if (!moved) return;
+        el.scrollLeft = down.left - dx;
+        const dt = e.timeStamp - down.lt;
+        if (dt > 0) down.v = down.v * .6 + (e.clientX - down.lx) / dt * .4;
+        down.lx = e.clientX; down.lt = e.timeStamp;
       }, { passive: true });
       addEventListener('pointerup', () => {
         if (!down) return;
-        down = null;
-        if (moved) { el.classList.remove('dragging'); go(at); }
+        const v = down.v; down = null;
+        if (!moved) return;
+        el.classList.remove('dragging');
+        const step = cells[0].offsetWidth;
+        go(clamp(at - Math.round(v * 220 / step), 0, items.length - 1));
       });
       el.addEventListener('click', e => {
         const c = e.target.closest('.reel-i'); if (!c || moved) return;
@@ -706,9 +783,7 @@
         const b = e.target.closest('[data-go]'); if (!b) return;
         go((at + +b.dataset.go + items.length) % items.length);
       });
-      reels[key] = {
-        now: () => items[Math.max(at, 0)], go, paint, size: items.length, at: () => at,
-      };
+      reels[key] = { now: () => items[Math.max(at, 0)], go, paint, size: items.length, at: () => at };
     }
     const start = () => {
       reels.top.go(groups.top.findIndex(p => p.slug === 'blossom-baggy-zip-hoodie'), false);
@@ -780,6 +855,9 @@
       }
     }, { passive: true });
   }
+
+  addEventListener('keydown', e => { if (e.key === 'Tab') document.documentElement.classList.add('kbd'); });
+  addEventListener('pointerdown', () => document.documentElement.classList.remove('kbd'));
 
   /* The 3D hero lives in hero.js. If WebGL or that file fails, the flat hero takes over. */
   const flatHero = () => { sky(); heroMotion(); };

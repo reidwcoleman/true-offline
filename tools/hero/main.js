@@ -611,7 +611,9 @@ async function start() {
     // branches enter from the top corners of whatever screen this is
     const zT = 3, hw = (fitD - zT) * tan * camera.aspect, hh = (fitD - zT) * tan;
     viewW = hw * 2;
-    const sc = portrait ? .78 : clamp(hw / 9.2, .7, 1.25);
+    // Blossom frames the shot: on tablets the hood sits near the top, so the branches shrink to clear it.
+    const headroom = hh - (H / 2 + .85);
+    const sc = portrait ? clamp(headroom / 3.4, .34, .78) : clamp(hw / 9.2, .7, 1.25);
     treeL.position.set(-hw - .4, hh + .1, zT);
     treeR.position.set(hw + .4, hh + .25, zT - 1.4);
     treeL.scale.setScalar(sc); treeR.scale.setScalar(sc * .92);

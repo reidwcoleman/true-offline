@@ -50,7 +50,11 @@ node tools/heroshot.mjs <dir>   # a tour of the 3D stage, the line and Build a f
 node tools/interact.mjs <dir>   # meshes, picker, filters, sorting, Build a fit, drag, keyboard, deep links, viewports
 ```
 
-## Before going live
+## Publishing
 
-- Set `og:image` in `index.html` to the absolute URL once there is a domain.
+Pushing `main` deploys `site/` to GitHub Pages through `.github/workflows/pages.yml`.
+
+## Keep in mind
+
+- `og:image` and `og:url` point at the GitHub Pages address. Change them if the site moves to its own domain.
 - Prices and shipping terms are a snapshot from 2026-11-05. Re-check them against Etsy when they change.
