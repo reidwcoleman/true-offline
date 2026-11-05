@@ -1,7 +1,7 @@
-"""Archivo Expanded Black Italic outlines for the chrome ring -> tools/hero/glyphs.json
+"""Archivo Expanded Black Italic outlines for the chrome type -> tools/hero/glyphs.json
 Needs fontTools. Run from the repo root: ~/Shift/.venv/bin/python tools/hero/glyphs.py
 """
-import json
+import json, string
 from fontTools.ttLib import TTFont
 from fontTools.varLib import instancer
 from fontTools.pens.svgPathPen import SVGPathPen
@@ -10,10 +10,10 @@ f = TTFont('tools/hero/fonts/Archivo-Italic.ttf')
 f = instancer.instantiateVariableFont(f, {'wdth': 125, 'wght': 900})
 gs, cmap = f.getGlyphSet(), f.getBestCmap()
 out = {'upem': f['head'].unitsPerEm, 'cap': f['OS/2'].sCapHeight, 'glyphs': {}}
-for ch in 'TRUEOFLIN':
+for ch in string.ascii_uppercase + '.':
     g = cmap[ord(ch)]
     pen = SVGPathPen(gs)
     gs[g].draw(pen)
     out['glyphs'][ch] = {'d': pen.getCommands(), 'adv': gs[g].width}
 json.dump(out, open('tools/hero/glyphs.json', 'w'))
-print({k: v['adv'] for k, v in out['glyphs'].items()}, out['cap'], out['upem'])
+print(len(out['glyphs']), 'glyphs')

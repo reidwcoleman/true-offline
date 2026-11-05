@@ -180,35 +180,115 @@
     show(0);
   }
 
+  /* A few petals carried down from the first screen. Canvas 2D, and only while the section is on screen. */
+  function drift(c, sec) {
+    const g = c.getContext('2d');
+    const sprite = document.createElement('canvas');
+    sprite.width = sprite.height = 64;
+    const s = sprite.getContext('2d');
+    s.scale(.25, .25);
+    s.beginPath();
+    s.moveTo(128, 250); s.bezierCurveTo(30, 190, 8, 90, 62, 34); s.bezierCurveTo(84, 12, 112, 18, 128, 46);
+    s.bezierCurveTo(144, 18, 172, 12, 194, 34); s.bezierCurveTo(248, 90, 226, 190, 128, 250); s.closePath();
+    const gr = s.createRadialGradient(128, 250, 6, 128, 120, 200);
+    gr.addColorStop(0, '#d92d6b'); gr.addColorStop(.4, '#f98bb0'); gr.addColorStop(1, '#ffeaf1');
+    s.fillStyle = gr; s.fill();
+    let W, H, D;
+    const size = () => { D = Math.min(devicePixelRatio || 1, 2); W = c.clientWidth; H = c.clientHeight; c.width = W * D; c.height = H * D; };
+    size(); addEventListener('resize', size);
+    const ps = Array.from({ length: innerWidth < 760 ? 12 : 22 }, () => ({
+      x: Math.random(), y: Math.random(), z: .35 + Math.random() * .9, r: Math.random() * 6.28, v: (Math.random() - .5) * 1.6, ph: Math.random() * 6.28,
+    }));
+    let on = false, last = 0;
+    const tick = now => {
+      if (!on) return;
+      const dt = Math.min(.05, (now - last) / 1000); last = now;
+      g.setTransform(D, 0, 0, D, 0, 0);
+      g.clearRect(0, 0, W, H);
+      for (const p of ps) {
+        p.y += dt * .05 * p.z; p.x += dt * (.012 + Math.sin(now / 1400 + p.ph) * .018) * p.z; p.r += p.v * dt;
+        if (p.y > 1.06) { p.y = -.06; p.x = Math.random(); }
+        if (p.x > 1.06) p.x = -.06;
+        const sz = 19 * p.z, flip = Math.cos(now / 900 + p.ph);
+        g.save();
+        g.translate(p.x * W, p.y * H); g.rotate(p.r); g.scale(.45 + Math.abs(flip) * .55, 1);
+        g.globalAlpha = .4 + p.z * .42;
+        g.drawImage(sprite, -sz / 2, -sz / 2, sz, sz);
+        g.restore();
+      }
+      requestAnimationFrame(tick);
+    };
+    new IntersectionObserver(([e]) => {
+      const was = on; on = e.isIntersecting;
+      if (on && !was) { last = performance.now(); requestAnimationFrame(tick); }
+    }).observe(sec);
+  }
+
   /* ---------- up close ---------- */
   function closeUp() {
     const items = [
-      ['pagoda', 'graphic-ripped-boxy-hoodie', 'Pagoda'],
-      ['redglobe', 'deep-red-logo-zip-hoodie', 'Quality garments'],
-      ['fury', 'fury-logo-straight-sweatpants', 'Flame star'],
-      ['starfish', 'starfish-fleece-faded-shorts', 'Starfish'],
-      ['hibiscus', 'hibiscus-ivory-hoodie', 'Hibiscus'],
-      ['japan', 'japan-jersey-sweatshirt', 'Mie Prefecture'],
+      ['pagoda', 'graphic-ripped-boxy-hoodie', 'Pagoda', '#D6246E', 1.02],
+      ['blossom', 'blossom-baggy-zip-hoodie', 'Blossom', '#E86A9A', 1.2],
+      ['redglobe', 'deep-red-logo-zip-hoodie', 'Globe', '#B23A63', 1.49],
+      ['fury', 'fury-logo-straight-sweatpants', 'Flame star', '#0A35F0', .86],
+      ['hibiscus', 'hibiscus-ivory-hoodie', 'Hibiscus', '#E23A36', 1.41],
+      ['japan', 'japan-jersey-sweatshirt', 'Mie', '#A9707A', 1.31],
     ];
-    const box = $('[data-bento]');
-    box.innerHTML = items.map(([img, slug, label], i) => {
+    const sec = $('#closeup'), track = $('[data-close-track]'), words = $('[data-close-words]');
+    const glowEl = $('[data-close-glow]'), bar = $('[data-close-bar]'), nEl = $('[data-close-n]');
+    $('[data-close-total]').textContent = String(items.length).padStart(2, '0');
+    track.insertAdjacentHTML('beforeend', items.map(([img, slug, label, , ar], i) => {
       const p = bySlug(slug);
-      return `<li style="--d:${(i % 3) * 70}ms"><a class="macro" href="#/${slug}" data-cursor="View" aria-label="${label}, ${p.name}">
-        <img src="img/macro-${img}.webp" alt="Close-up of the ${label} print on the ${p.name}" loading="lazy">
-        <span class="macro-tag">${label}<small>${money(p.price)}</small></span>
-      </a></li>`;
-    }).join('');
+      return `<a class="cc" href="#/${slug}" data-cursor="View" style="--ar:${ar}">
+        <span class="cc-frame"><img src="img/macro-${img}.webp" alt="Close-up of the ${label} print on the ${p.name}" loading="lazy"><i class="cc-shade"></i></span>
+        <span class="cc-cap"><span class="cc-n">${String(i + 1).padStart(2, '0')}</span><span class="cc-label">${label}</span><span class="cc-price">${money(p.price)}</span><span class="cc-piece">${p.name}</span></span>
+      </a>`;
+    }).join(''));
+    words.innerHTML = items.map(([, , label, tint]) => `<span style="color:${tint}">${label}</span>`).join('');
+    const cards = $$('.cc', track).map(el => ({ el, img: $('img', el), shade: $('.cc-shade', el) }));
+    const wordEls = $$('span', words);
     if (calm) return;
-    const imgs = $$('img', box);
-    scrubs.push(() => {
-      const h = innerHeight;
-      for (const im of imgs) {
-        const r = im.parentNode.getBoundingClientRect();
-        if (r.bottom < 0 || r.top > h) continue;
-        const k = (r.top + r.height / 2 - h / 2) / h;
-        im.style.transform = `translate3d(0,${(k * -6).toFixed(2)}%,0)`;
+
+    let travel = 0, lastX = 0, vel = 0, shown = -1;
+    const layout = () => {
+      travel = Math.max(0, track.scrollWidth - innerWidth);
+      sec.style.height = `${travel * 1.05 + innerHeight}px`;
+      cards.forEach(c => { c.x = c.el.offsetLeft; c.w = c.el.offsetWidth; });
+    };
+    const paint = () => {
+      const r = sec.getBoundingClientRect();
+      if (r.bottom < -40 || r.top > innerHeight + 40) return;
+      const p = clamp(-r.top / (r.height - innerHeight));
+      const x = -p * travel;
+      vel += ((x - lastX) - vel) * .25; lastX = x;
+      track.style.transform = `translate3d(${x}px,0,0)`;
+      bar.style.transform = `scaleX(${p})`;
+      let best = 0, bestF = -1;
+      cards.forEach((c, i) => {
+        const d = (c.x + c.w / 2 + x - innerWidth / 2) / innerWidth;
+        const f = 1 - clamp(Math.abs(d) * 1.35);
+        if (f > bestF) { bestF = f; best = i; }
+        // cards swing like pages round the middle of the screen
+        c.el.style.transform = `translate3d(0,${(1 - f) * 10}px,${(f - 1) * 150}px) rotateY(${clamp(d * -26, -30, 30)}deg)`;
+        c.shade.style.opacity = (1 - f) * (1 - f) * .55;
+        c.img.style.transform = `translate3d(${(d * -7).toFixed(2)}%,0,0)`;
+        const w = wordEls[i];
+        w.style.opacity = (f * f * .24).toFixed(3);
+        w.style.transform = `translate(calc(-50% + ${(d * 42).toFixed(2)}vw),-50%)`;
+      });
+      if (best !== shown) {
+        shown = best;
+        nEl.textContent = String(best + 1).padStart(2, '0');
+        glowEl.style.setProperty('--tint', items[best][3]);
       }
-    });
+    };
+    drift($('[data-close-petals]'), sec);
+    layout();
+    addEventListener('resize', () => { layout(); paint(); });
+    addEventListener('load', () => { layout(); paint(); });
+    document.fonts && document.fonts.ready.then(() => { layout(); paint(); });
+    scrubs.push(paint);
+    paint();
   }
 
   /* ---------- shop grid ---------- */
@@ -514,19 +594,6 @@
       });
     }, { rootMargin: '0px 0px -8% 0px', threshold: .01 });
     $$('.rv,.mask,.tile').forEach(e => io.observe(e));
-    // Bento tiles start fully clipped, and a fully clipped element never reports as intersecting,
-    // so these are checked by position instead.
-    const lis = $$('.bento li');
-    const sweep = () => {
-      const h = innerHeight * .94;
-      for (const li of lis) {
-        if (li.classList.contains('in')) continue;
-        if (li.getBoundingClientRect().top < h) li.classList.add('in');
-      }
-    };
-    scrubs.push(sweep);
-    sweep();
-
     if (calm) return;
     // Variable width: headline type stretches out to full width as it arrives.
     const items = $$('[data-stretch]');

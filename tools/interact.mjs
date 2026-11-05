@@ -7,6 +7,7 @@ const out = process.argv[2], URL = 'http://localhost:4780/';
 const b = await chromium.launch({ executablePath: process.env.CHROME, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const errs = [];
 let fails = 0;
+const innerWidthFor = r => r.w;
 const ok = (name, cond, extra = '') => { console.log((cond ? 'ok   ' : 'FAIL ') + name + (extra ? '  ' + extra : '')); if (!cond) fails++; };
 
 const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
@@ -15,6 +16,7 @@ p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
 p.on('pageerror', e => errs.push(e.message));
 await p.goto(URL, { waitUntil: 'load' });
 await p.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 25000 });
+await p.waitForFunction(() => document.documentElement.dataset.stops === 'ready', null, { timeout: 25000 });
 
 // the offline idea is gone for good
 const leftovers = await p.evaluate(async () => {
@@ -37,6 +39,11 @@ await p.evaluate(() => scrollTo({ top: document.querySelector('#hero').offsetHei
 ok('scroll dive fades to black into the next section', await p.evaluate(() => +document.querySelector('[data-hero-fade]').style.opacity > .97));
 await p.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
 
+// the wordmark must be fully on screen: project the outermost letters to pixels
+await p.waitForTimeout(3200);   // let the ring finish swinging in
+const reach = await p.evaluate(() => window.TO_ringReach ? window.TO_ringReach() : null);
+ok('both ends of TRUE OFFLINE are on screen', reach && reach.left > 0 && reach.right < innerWidthFor(reach), JSON.stringify(reach));
+
 // intro plays, then gets out of the way, and only once per visit
 ok('intro armed on first visit', await p.evaluate(() => document.documentElement.classList.contains('intro')));
 await p.waitForTimeout(1700);
@@ -51,19 +58,21 @@ ok('every product has a real listing url + price', data.every(d => /^https:\/\/w
 ok('every size table is complete', data.every(d => d.s >= 4 && d.r >= 3 && d.full));
 ok('every product appears once in the grid', await p.evaluate(() => new Set([...document.querySelectorAll('.tile')].map(t => t.dataset.slug)).size === 20 && !document.querySelector('.tile a[href="#/undefined"]')));
 
-// up close
-await p.evaluate(() => document.querySelector('#closeup').scrollIntoView({ behavior: 'instant' }));
-await p.waitForTimeout(1300);
-await p.evaluate(() => document.querySelector('.bento').scrollIntoView({ behavior: 'instant', block: 'end' }));
-await p.waitForTimeout(1300);
-const bento = await p.evaluate(async () => {
-  const im = [...document.querySelectorAll('.macro img')];
+// up close: a pinned gallery that moves sideways with the scroll
+const cl = await p.evaluate(() => { const s = document.querySelector('#closeup'); return { top: s.offsetTop, span: s.offsetHeight - innerHeight }; });
+await p.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), cl.top + 2); await p.waitForTimeout(500);
+const x0 = await p.evaluate(() => new DOMMatrix(getComputedStyle(document.querySelector('[data-close-track]')).transform).m41);
+await p.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), cl.top + cl.span - 2); await p.waitForTimeout(700);
+const end = await p.evaluate(async () => {
+  const cards = [...document.querySelectorAll('.cc')], im = cards.map(c => c.querySelector('img'));
   await Promise.all(im.map(i => { i.loading = 'eager'; return i.decode().catch(() => {}); }));
-  return { n: im.length, loaded: im.filter(i => i.naturalWidth > 0).length, open: [...document.querySelectorAll('.bento li')].filter(l => l.classList.contains('in')).length };
+  const r = cards[cards.length - 1].getBoundingClientRect();
+  return { n: cards.length, loaded: im.filter(i => i.naturalWidth > 0).length, x: new DOMMatrix(getComputedStyle(document.querySelector('[data-close-track]')).transform).m41, lastIn: r.left >= 0 && r.right <= innerWidth + 2, count: document.querySelector('[data-close-n]').textContent, over: document.documentElement.scrollWidth - innerWidth };
 });
-ok('all 6 close-ups load and reveal', bento.n === 6 && bento.loaded === 6 && bento.open === 6, JSON.stringify(bento));
-const holes = await p.evaluate(() => { const g = document.querySelector('.bento').getBoundingClientRect(); const area = [...document.querySelectorAll('.bento li')].reduce((a, l) => { const r = l.getBoundingClientRect(); return a + r.width * r.height; }, 0); return area / (g.width * g.height); });
-ok('bento has no holes', holes > .93, holes.toFixed(3));
+ok('all 6 close-ups load', end.n === 6 && end.loaded === 6, JSON.stringify(end));
+ok('gallery moves sideways with the scroll', end.x < x0 - 400);
+ok('last close-up lands on screen', end.lastIn && end.count === '06');
+ok('no sideways page scroll from the gallery', end.over <= 0);
 await p.screenshot({ path: `${out}/i-bento.jpg`, quality: 82, type: 'jpeg' });
 
 // filters
@@ -193,13 +202,15 @@ for (const [n, setup] of [
 }
 
 // other viewports
-for (const [n, w, h] of [['wide', 1920, 1080], ['short', 1280, 660], ['tablet', 820, 1180]]) {
+for (const [n, w, h] of [['wide', 1920, 1080], ['short', 1280, 660], ['tablet', 820, 1180], ['phone', 390, 844]]) {
   const c = await b.newContext({ viewport: { width: w, height: h } });
   const q = await c.newPage();
   await q.goto(URL, { waitUntil: 'load' });
   await q.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 25000 });
   await q.waitForTimeout(3600);
   await q.screenshot({ path: `${out}/v-${n}.jpg`, quality: 78, type: 'jpeg' });
+  const rr = await q.evaluate(() => window.TO_ringReach());
+  ok(`${n}: whole wordmark on screen`, rr.left > 0 && rr.right < rr.w, JSON.stringify(rr));
   ok(`${n}: no sideways scroll`, await q.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await q.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })); await q.waitForTimeout(500);
   const clip = await q.evaluate(() => { const e = document.querySelector('.foot-wm'), r = document.createRange(); r.selectNodeContents(e); const b = r.getBoundingClientRect(); return { l: Math.round(b.left), r: Math.round(b.right), w: innerWidth, s: e.style.fontStretch }; });
