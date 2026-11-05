@@ -361,17 +361,6 @@
       images();
     });
 
-    const buyState = () => {
-      const on = navigator.onLine;
-      buy.setAttribute('aria-disabled', !on);
-      buy.tabIndex = on ? 0 : -1;
-      if (cur) buy.innerHTML = on ? `<span>Buy on Etsy</span><span>${money(cur.price)}</span>` : '<span>Reconnect to buy</span>';
-      $('[data-s-buy-note]').textContent = on
-        ? "You'll pick your size on Etsy. Free shipping, about two weeks to the US."
-        : 'You are offline, which is the idea. Checkout needs a signal.';
-    };
-    addEventListener('online', buyState); addEventListener('offline', buyState);
-
     const nextOf = d => P[(P.indexOf(cur) + d + P.length) % P.length];
 
     function fill(p, side) {
@@ -392,7 +381,8 @@
       const nx = nextOf(1);
       $('[data-next-name]').textContent = nx.name;
       $('[data-next-img]').src = src(nx, 'front', firstColour(nx), true);
-      images(); sizes(); table(); buyState();
+      buy.innerHTML = `<span>Buy on Etsy</span><span>${money(p.price)}</span>`;
+      images(); sizes(); table();
       cancelAnimationFrame(anim); setT(side);
       document.title = `${p.name} / True Offline`;
     }
@@ -495,51 +485,6 @@
     route();
   }
 
-  /* ---------- offline ---------- */
-  function offline() {
-    const labels = $$('[data-net-label]');
-    const title = $('[data-off-title]'), sub = $('[data-off-sub]'), line = $('[data-hero-line]');
-    const saved = $('[data-saved]'), sw = $('[data-switch]');
-    const on = { title: title.textContent, sub: sub.textContent, line: line.textContent };
-    let preview = false;
-    const net = () => {
-      const real = !navigator.onLine, off = real || preview;
-      document.body.classList.toggle('is-offline', off);
-      labels.forEach(l => { l.textContent = off ? 'Offline' : 'Online'; });
-      title.textContent = off ? 'There you go.' : on.title;
-      sub.textContent = off ? 'No signal, and the whole line is still here. Checkout will need you back online. No rush.' : on.sub;
-      line.textContent = off ? 'No signal. You are doing it right.' : on.line;
-      sw.setAttribute('aria-checked', off);
-      sw.disabled = real;
-    };
-    sw.addEventListener('click', () => { preview = !preview; net(); });
-    addEventListener('online', net); addEventListener('offline', net); net();
-
-    const count = async () => {
-      if (!('caches' in window)) { saved.textContent = 'Not available here'; return; }
-      const keys = await caches.keys();
-      let n = 0;
-      for (const k of keys) n += (await (await caches.open(k)).keys()).length;
-      saved.textContent = n ? `${n} files` : 'Saving';
-    };
-    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-      navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(() => {
-        count();
-        navigator.serviceWorker.addEventListener('message', count);
-      }).catch(() => { saved.textContent = 'Not available here'; });
-      setTimeout(count, 2500);
-    } else saved.textContent = 'Not available here';
-
-    if (calm) return;
-    const stack = $('.off-stack'), sec = $('#offline');
-    scrubs.push(() => {
-      const r = sec.getBoundingClientRect();
-      if (r.bottom < 0 || r.top > innerHeight) return;
-      const k = (r.top + r.height / 2 - innerHeight / 2) / innerHeight;
-      stack.style.transform = `translate3d(${k * 60}px,${k * 40}px,0) rotate(${k * -3}deg)`;
-    });
-  }
-
   /* ---------- top bar ---------- */
   function barTone() {
     const bar = $('.bar'), over = new Set();
@@ -618,14 +563,20 @@
     document.addEventListener('pointerleave', () => c.classList.remove('on'));
   }
 
-  sky();
+  /* The 3D hero lives in hero.js. If WebGL or that file fails, the flat hero takes over. */
+  const flatHero = () => { sky(); heroMotion(); };
+  if (document.documentElement.classList.contains('gl')) {
+    window.TO_heroFail = () => {
+      window.TO_heroFail = null;
+      document.documentElement.classList.remove('gl');
+      flatHero();
+    };
+  } else flatHero();
   barTone();
-  heroMotion();
   turnSection();
   closeUp();
   shop();
   sheet();
-  offline();
   reveals();
   cursor();
   runScrubs();

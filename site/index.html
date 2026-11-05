@@ -4,23 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>True Offline</title>
-<meta name="description" content="True Offline. Washed hoodies, sweats and shorts from Raleigh, NC. Stars, flames and cherry blossom. This site works with your wifi off.">
+<meta name="description" content="True Offline. Washed hoodies, sweats and shorts from Raleigh, NC. Stars, flames and cherry blossom.">
 <meta name="theme-color" content="#08080B">
 <meta property="og:title" content="True Offline">
 <meta property="og:description" content="Clothes for outside. Twenty pieces from Raleigh, NC.">
 <meta property="og:image" content="img/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="img/star.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="preload" href="fonts/archivo-italic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="img/logo-grey-washed-box-hoodie-back.webp" as="image" type="image/webp">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=4">
 <script>
 /* The intro plays once per visit. It is pure CSS, so a script failure can never leave it covering the page. */
 (function () {
   var d = document.documentElement;
   d.classList.add('js');
+  try { if (document.createElement('canvas').getContext('webgl2')) d.classList.add('gl'); } catch (e) {}
+  /* Earlier builds installed a service worker. Clear it out of anyone's browser that still has it. */
+  if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function (r) { r.forEach(function (x) { x.unregister(); }); });
+  if (window.caches) caches.keys().then(function (k) { k.forEach(function (n) { caches.delete(n); }); });
   var seen = false;
   try { seen = sessionStorage.getItem('to-intro') === '1'; sessionStorage.setItem('to-intro', '1'); } catch (e) {}
   if (!seen && !location.hash && !matchMedia('(prefers-reduced-motion: reduce)').matches) d.classList.add('intro');
@@ -54,26 +56,28 @@
   <nav class="bar-nav" aria-label="Main">
     <a class="ul" href="#shop">Shop</a>
     <a class="ul" href="#closeup">Up close</a>
-    <a class="ul" href="#offline">Offline</a>
   </nav>
-  <p class="bar-status" role="status"><i class="dot"></i><span data-net-label>Online</span></p>
+  <a class="ul bar-etsy" href="https://www.etsy.com/shop/TrueOffline" rel="noopener">Etsy</a>
 </header>
 
 <main id="top">
 
-<section class="hero" aria-label="True Offline">
-  <canvas class="sky" aria-hidden="true"></canvas>
-  <h1 class="wm" aria-label="True Offline">
-    <span class="wm-a" aria-hidden="true">True</span>
-    <span class="wm-b" aria-hidden="true">Offline</span>
-  </h1>
-  <div class="hero-piece">
-    <img src="img/logo-grey-washed-box-hoodie-back.webp" width="1200" height="1500" alt="Back of the Logo Grey Washed Box Hoodie, with the True Offline globe logo across the shoulders" fetchpriority="high">
-  </div>
-  <div class="hero-foot">
-    <p class="hero-line" data-hero-line>Clothes for outside.</p>
-    <p class="hero-coord">35.78&deg; N&ensp;78.64&deg; W</p>
-    <a class="cta" href="#shop"><span>Shop all 20</span><span class="cta-arrow" aria-hidden="true">&darr;</span></a>
+<section class="hero" id="hero" aria-label="True Offline">
+  <div class="hero-pin">
+    <canvas class="sky" aria-hidden="true"></canvas>
+    <h1 class="wm" aria-label="True Offline">
+      <span class="wm-a" aria-hidden="true">True</span>
+      <span class="wm-b" aria-hidden="true">Offline</span>
+    </h1>
+    <div class="hero-piece">
+      <img src="img/logo-grey-washed-box-hoodie-back.webp" width="1200" height="1500" alt="Back of the Logo Grey Washed Box Hoodie, with the True Offline globe logo across the shoulders" fetchpriority="high">
+    </div>
+    <canvas class="gl-canvas" data-gl data-cursor="Drag to spin" aria-hidden="true"></canvas>
+    <div class="hero-fade" data-hero-fade aria-hidden="true"></div>
+    <div class="hero-foot" data-hero-foot>
+      <p class="hero-line">Clothes for outside.</p>
+      <a class="cta" href="#shop"><span>Shop all 20</span><span class="cta-arrow" aria-hidden="true">&darr;</span></a>
+    </div>
   </div>
 </section>
 
@@ -104,28 +108,6 @@
   </div>
   <ul class="grid" data-grid></ul>
   <noscript><p class="shop-noscript">The shop needs JavaScript. Everything is also on <a href="https://www.etsy.com/shop/TrueOffline">Etsy</a>.</p></noscript>
-</section>
-
-<section class="off" id="offline" aria-labelledby="off-h">
-  <svg class="off-stack" viewBox="-110 -60 480 300" aria-hidden="true">
-    <use class="s1" href="#star" width="332" height="199"/>
-    <use class="s2" href="#star" width="332" height="199"/>
-    <use class="s3" href="#star" width="332" height="199"/>
-  </svg>
-  <div class="off-in">
-    <h2 id="off-h" data-off-title>Turn your wifi off.</h2>
-    <p class="off-sub" data-off-sub>Go on. This site saves itself to your device, so all twenty pieces stay right here with no signal. It seemed like the least we could do.</p>
-    <div class="off-row">
-      <button class="switch" type="button" role="switch" aria-checked="false" data-switch>
-        <span class="switch-track"><span class="switch-thumb"><svg aria-hidden="true"><use href="#star"/></svg></span></span>
-        <span class="switch-label">Preview offline</span>
-      </button>
-      <dl class="off-read">
-        <div><dt>Connection</dt><dd data-net-label>Online</dd></div>
-        <div><dt>Saved on this device</dt><dd data-saved>Checking</dd></div>
-      </dl>
-    </div>
-  </div>
 </section>
 
 <section class="facts" aria-label="Shipping and returns">
@@ -210,7 +192,8 @@
 
 <div class="cur" aria-hidden="true" data-cur></div>
 
-<script src="data.js"></script>
-<script src="app.js"></script>
+<script src="data.js?v=4"></script>
+<script src="app.js?v=4"></script>
+<script src="hero.js?v=4" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
 </body>
 </html>

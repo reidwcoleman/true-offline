@@ -69,4 +69,5 @@ def main():
                 im.resize((720, 900), Image.LANCZOS).save(f'{OUT}/{name}-s.webp', quality=80, method=6)
                 print(name, flush=True)
 
-main()
+if __name__ == '__main__':
+    main()

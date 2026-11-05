@@ -4,7 +4,7 @@ import path from 'path';
 const require = createRequire(import.meta.url);
 const { chromium } = require(path.join(process.env.HOME, '.nvm/versions/node', process.version, 'lib/node_modules/@playwright/cli/node_modules/playwright'));
 const out = process.argv[2], URL = 'http://localhost:4780/';
-const b = await chromium.launch({ executablePath: process.env.CHROME });
+const b = await chromium.launch({ executablePath: process.env.CHROME, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const errs = [];
 let fails = 0;
 const ok = (name, cond, extra = '') => { console.log((cond ? 'ok   ' : 'FAIL ') + name + (extra ? '  ' + extra : '')); if (!cond) fails++; };
@@ -13,13 +13,35 @@ const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
 const p = await ctx.newPage();
 p.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
 p.on('pageerror', e => errs.push(e.message));
-await p.goto(URL, { waitUntil: 'networkidle' });
+await p.goto(URL, { waitUntil: 'load' });
+await p.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 25000 });
+
+// the offline idea is gone for good
+const leftovers = await p.evaluate(async () => {
+  const text = document.body.innerText.toLowerCase();
+  const regs = await navigator.serviceWorker.getRegistrations();
+  return { text: /wifi|no signal|reconnect|saved on this device/.test(text), section: !!document.querySelector('#offline,[data-switch],.bar-status'), regs: regs.length };
+});
+ok('no offline feature left on the page', !leftovers.text && !leftovers.section && leftovers.regs === 0, JSON.stringify(leftovers));
+
+// 3D hero
+ok('webgl hero is live', await p.evaluate(() => document.querySelector('[data-gl]').classList.contains('on')));
+const paint = await p.evaluate(() => new Promise(res => requestAnimationFrame(() => { const c = document.querySelector('[data-gl]'); res({ w: c.width, h: c.height }); })));
+ok('canvas fills the screen', paint.w >= 1440 && paint.h >= 900, JSON.stringify(paint));
+const glb = await p.locator('[data-gl]').boundingBox();
+await p.mouse.move(glb.width * .5, glb.height * .4); await p.mouse.down();
+await p.mouse.move(glb.width * .8, glb.height * .4, { steps: 8 }); await p.mouse.up();
+ok('dragging the hero does not scroll the page', (await p.evaluate(() => scrollY)) === 0);
+ok('cursor label says Drag to spin', await p.evaluate(() => document.querySelector('[data-cur]').textContent === 'Drag to spin'));
+await p.evaluate(() => scrollTo({ top: document.querySelector('#hero').offsetHeight - innerHeight, behavior: 'instant' })); await p.waitForTimeout(400);
+ok('scroll dive fades to black into the next section', await p.evaluate(() => +document.querySelector('[data-hero-fade]').style.opacity > .97));
+await p.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
 
 // intro plays, then gets out of the way, and only once per visit
 ok('intro armed on first visit', await p.evaluate(() => document.documentElement.classList.contains('intro')));
 await p.waitForTimeout(1700);
 ok('intro has left the screen', await p.evaluate(() => getComputedStyle(document.querySelector('.intro-layer')).visibility === 'hidden'));
-await p.reload({ waitUntil: 'networkidle' });
+await p.reload({ waitUntil: 'load' });
 ok('intro skipped on reload', !(await p.evaluate(() => document.documentElement.classList.contains('intro'))));
 
 // data integrity
@@ -127,14 +149,6 @@ await bigTile.focus(); await p.keyboard.press('Enter'); await p.waitForTimeout(7
 ok('keyboard open on feature tile shows the back', await val() === 'Back');
 await p.keyboard.press('Escape'); await p.waitForTimeout(700);
 
-// the offline preview switch
-await p.evaluate(() => document.querySelector('#offline').scrollIntoView({ behavior: 'instant' })); await p.waitForTimeout(500);
-await p.click('[data-switch]'); await p.waitForTimeout(1100);
-ok('preview flips the section', (await p.textContent('[data-off-title]')) === 'There you go.' && await p.evaluate(() => document.body.classList.contains('is-offline')));
-await p.screenshot({ path: `${out}/i-preview.jpg`, quality: 82, type: 'jpeg' });
-await p.click('[data-switch]'); await p.waitForTimeout(300);
-ok('preview flips back', (await p.textContent('[data-off-title]')) === 'Turn your wifi off.');
-
 // colourway
 await p.goto(URL + '#/autumn-waffle-knit', { waitUntil: 'networkidle' }); await p.waitForTimeout(500);
 ok('deep link opens sheet', await p.isVisible('[data-sheet]'));
@@ -151,11 +165,27 @@ const missing = await p.evaluate(async () => {
 ok('all large images resolve', missing.length === 0, missing.join(' '));
 await ctx.close();
 
+// no WebGL, or the bundle fails: the flat hero takes over
+for (const [n, setup] of [
+  ['no webgl', async q => { await q.addInitScript(() => { const g = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, ...a) { return /webgl/.test(t) ? null : g.call(this, t, ...a); }; }); }],
+  ['bundle fails', async q => { await q.route('**/hero.js*', r => r.abort()); }],
+]) {
+  const c = await b.newContext({ viewport: { width: 1440, height: 900 } });
+  const q = await c.newPage();
+  await setup(q);
+  await q.goto(URL, { waitUntil: 'load' }); await q.waitForTimeout(1900);
+  const st = await q.evaluate(() => ({ gl: document.documentElement.classList.contains('gl'), wm: getComputedStyle(document.querySelector('.wm')).display, piece: document.querySelector('.hero-piece img').complete, h: document.querySelector('#hero').offsetHeight / innerHeight }));
+  ok(`${n}: flat hero shows`, !st.gl && st.wm !== 'none' && st.piece && st.h < 1.1, JSON.stringify(st));
+  await q.screenshot({ path: `${out}/i-fallback.jpg`, quality: 76, type: 'jpeg' });
+  await c.close();
+}
+
 // reduced motion: nothing stays hidden
 {
   const c = await b.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
   const q = await c.newPage();
-  await q.goto(URL, { waitUntil: 'networkidle' });
+  await q.goto(URL, { waitUntil: 'load' });
+  await q.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 25000 });
   ok('reduced motion skips the intro', !(await q.evaluate(() => document.documentElement.classList.contains('intro'))));
   await q.evaluate(() => document.querySelector('#shop').scrollIntoView({ behavior: 'instant' })); await q.waitForTimeout(400);
   ok('reduced motion still reveals', await q.evaluate(() => getComputedStyle(document.querySelector('.tile')).opacity === '1'));
@@ -166,7 +196,9 @@ await ctx.close();
 for (const [n, w, h] of [['wide', 1920, 1080], ['short', 1280, 660], ['tablet', 820, 1180]]) {
   const c = await b.newContext({ viewport: { width: w, height: h } });
   const q = await c.newPage();
-  await q.goto(URL, { waitUntil: 'networkidle' }); await q.waitForTimeout(2600);
+  await q.goto(URL, { waitUntil: 'load' });
+  await q.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 25000 });
+  await q.waitForTimeout(3600);
   await q.screenshot({ path: `${out}/v-${n}.jpg`, quality: 78, type: 'jpeg' });
   ok(`${n}: no sideways scroll`, await q.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await q.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })); await q.waitForTimeout(500);

@@ -1,3 +1,6 @@
 raw/
 tools/vision
 .DS_Store
+node_modules/
+tools/hero/fonts/
+__pycache__/
