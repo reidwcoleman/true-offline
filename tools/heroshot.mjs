@@ -3,7 +3,7 @@ import { createRequire } from 'module';
 import path from 'path';
 const require = createRequire(import.meta.url);
 const { chromium } = require(path.join(process.env.HOME, '.nvm/versions/node', process.version, 'lib/node_modules/@playwright/cli/node_modules/playwright'));
-const out = process.argv[2], tag = process.argv[3] || 'h', URL = 'http://localhost:4780/';
+const out = process.argv[2], tag = process.argv[3] || 'h', URL = process.env.SITE || 'http://localhost:4780/';
 const b = await chromium.launch({ executablePath: process.env.CHROME, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const errs = [];
 const shot = (p, n, extra = {}) => p.screenshot({ path: `${out}/${tag}-${n}.jpg`, quality: 86, type: 'jpeg', ...extra });
