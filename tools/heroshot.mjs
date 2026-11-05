@@ -26,7 +26,9 @@ async function tour(p, n) {
   await shot(p, `${n}-front`);
   const m = await p.evaluate(() => ({ heroH: document.querySelector('#hero').offsetHeight - innerHeight, turn: document.querySelector('#turn').offsetTop, turnH: document.querySelector('#turn').offsetHeight - innerHeight, shop: document.querySelector('#shop').offsetTop, fit: document.querySelector('#fit').offsetTop }));
   const go = async (y, wait = 500) => { await p.evaluate(v => scrollTo({ top: v, behavior: 'instant' }), y); await p.waitForTimeout(wait); };
-  await go(m.heroH * .6); await shot(p, `${n}-dive`);
+  for (const [k, f] of [['a', .25], ['b', .45], ['c', .68], ['d', .86], ['e', .95]]) { await go(m.heroH * f, 900); await shot(p, `${n}-v${k}`); }
+  await go(m.heroH + 8, 900); await shot(p, `${n}-vf`);
+  await go(m.turn + m.turnH * .05, 900); await shot(p, `${n}-vg`);
   await go(m.turn + m.turnH * .03); await shot(p, `${n}-t0`);
   await go(m.turn + m.turnH * .15, 700); await shot(p, `${n}-t1`);
   await go(m.turn + m.turnH * .25, 700); await shot(p, `${n}-tswap`);

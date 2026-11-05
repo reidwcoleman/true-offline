@@ -275,6 +275,74 @@ await p.screenshot({ path: `${out}/i-wave.jpg`, quality: 82, type: 'jpeg' });
 
 await ctx.close();
 
+// touch: the page always scrolls, sideways swipes do the spinning, and nothing pushes back
+{
+  const tc = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const t = await tc.newPage();
+  t.on('pageerror', e => errs.push(e.message));
+  await t.goto(URL, { waitUntil: 'load' });
+  await t.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 25000 });
+  const cdp = await tc.newCDPSession(t);
+  const swipe = (x, y, dx, dy, speed = 900) => cdp.send('Input.synthesizeScrollGesture', { x, y, xDistance: dx, yDistance: dy, speed, gestureSourceType: 'touch' });
+  const watch = () => t.evaluate(() => { window.__ys = []; const f = () => { window.__ys.push(scrollY); window.__on && requestAnimationFrame(f); }; window.__on = true; f(); });
+  const stop = () => t.evaluate(() => { window.__on = false; const y = window.__ys; let back = 0; for (let i = 1; i < y.length; i++) back = Math.max(back, y[i - 1] - y[i]); return { from: y[0], to: y[y.length - 1], back }; });
+  ok('touch: no tap effects, no smooth-scroll script on phones', await t.evaluate(() => !window.Lenis));
+  ok('touch: first screen starts on the poster', await t.evaluate(() => !!document.querySelector('.gl-poster')));
+  await t.waitForTimeout(600);
+  await swipe(195, 420, -170, 0, 700); await t.waitForTimeout(250);
+  ok('touch: a sideways swipe spins the hoodie', (await t.evaluate(() => window.TO_hero.state().spun)) > .4);
+  ok('touch: a sideways swipe does not scroll', (await t.evaluate(() => scrollY)) === 0);
+  const sp0 = await t.evaluate(() => window.TO_hero.state().spun);
+  await t.waitForTimeout(3600);
+  await watch();
+  const spinBefore = await t.evaluate(() => window.TO_hero.state().spun);
+  await swipe(195, 620, 0, -520); await t.waitForTimeout(300);
+  let r = await stop();
+  ok('touch: a swipe up on the 3D scrolls the page', r.to - r.from > 400, JSON.stringify(r));
+  ok('touch: scrolling the 3D never pushes back', r.back === 0, JSON.stringify(r));
+  // the whole page, top to bottom, in long swipes
+  await watch();
+  for (let i = 0; i < 26; i++) { await swipe(195, 700, 0, -560, 1800); await t.waitForTimeout(40); }
+  r = await stop();
+  ok('touch: the whole page scrolls with no push-back', r.to > 4000 && r.back === 0, JSON.stringify(r));
+  // shop tiles: vertical goes to the page, sideways shows the back, and a swipe is not a tap
+  await t.evaluate(() => { const y = document.querySelector('.grid').getBoundingClientRect().top + scrollY; scrollTo({ top: y + 700, behavior: 'instant' }); });
+  await t.waitForTimeout(500);
+  const box = await t.evaluate(() => { const l = [...document.querySelectorAll('.tile:not(.big) .tile-plate')].find(e => { const r = e.getBoundingClientRect(); return r.top > 90 && r.bottom < innerHeight - 20; }); l.closest('.tile').id = 'pick'; const r = l.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  const y1 = await t.evaluate(() => scrollY);
+  await swipe(box.x + 50, box.y, -110, 0, 700); await t.waitForTimeout(450);
+  ok('touch: a sideways swipe on a piece shows its back', await t.evaluate(() => document.querySelector('#pick a').classList.contains('flip') && +getComputedStyle(document.querySelector('#pick .b')).opacity > .9));
+  ok('touch: swiping a piece does not open it or scroll', (await t.evaluate(() => scrollY)) === y1 && !(await t.isVisible('[data-sheet]')));
+  await watch();
+  await swipe(box.x, box.y, 0, -300); await t.waitForTimeout(250);
+  r = await stop();
+  ok('touch: a swipe up on a piece scrolls the page', r.to - r.from > 200 && r.back === 0, JSON.stringify(r));
+  // Build a fit: vertical scroll passes straight through the reels
+  await t.evaluate(() => document.querySelector('#fit').scrollIntoView({ behavior: 'instant' })); await t.waitForTimeout(900);
+  const rb2 = await t.evaluate(() => { const r = document.querySelector('[data-reel="bottom"]').getBoundingClientRect(); return { x: r.left + r.width / 2, y: Math.min(r.top + r.height / 2, innerHeight - 200) }; });
+  await watch();
+  await swipe(rb2.x, rb2.y, 0, -260); await t.waitForTimeout(300);
+  r = await stop();
+  ok('touch: page scrolls when the swipe starts on a reel', r.to - r.from > 150, JSON.stringify(r));
+  await tc.close();
+}
+
+// desktop wheel: no backward jolts anywhere on the way down
+{
+  const wc = await b.newContext({ viewport: { width: 1440, height: 900 } });
+  const w = await wc.newPage();
+  await w.goto(URL, { waitUntil: 'load' });
+  await w.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 25000 });
+  await w.waitForTimeout(800);
+  await w.mouse.move(700, 450);
+  await w.evaluate(() => { window.__ys = []; const f = () => { window.__ys.push(scrollY); window.__on && requestAnimationFrame(f); }; window.__on = true; f(); });
+  for (let i = 0; i < 60; i++) { await w.mouse.wheel(0, 300); await w.waitForTimeout(60); }
+  await w.waitForTimeout(900);
+  const r = await w.evaluate(() => { window.__on = false; const y = window.__ys; let back = 0; for (let i = 1; i < y.length; i++) back = Math.max(back, y[i - 1] - y[i]); return { to: y[y.length - 1], back }; });
+  ok('desktop: wheel scrolling never jolts backward', r.to > 5000 && r.back <= 1, JSON.stringify(r));
+  await wc.close();
+}
+
 // no WebGL, or the bundle fails: the flat hero takes over
 for (const [n, setup] of [
   ['no webgl', async q => { await q.addInitScript(() => { const g = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, ...a) { return /webgl/.test(t) ? null : g.call(this, t, ...a); }; }); }],

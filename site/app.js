@@ -181,9 +181,11 @@
       const span = r.height - innerHeight;
       const pos = clamp(-r.top / span) * picks.length;
       show(Math.min(picks.length - 1, Math.floor(pos)));
+      const flat = !document.documentElement.classList.contains('gl');
       gs.forEach((g, i) => {
         const local = pos - i;               // 0..1 while this garment is on stage
         bars[i].style.transform = `scaleX(${clamp(local)})`;
+        if (!flat) return;                   // the 3D stage is showing these
         const on = local > -.12 && local < 1.12;
         g.el.style.visibility = on ? 'visible' : 'hidden';
         g.w.style.visibility = on ? 'visible' : 'hidden';
@@ -222,9 +224,10 @@
         <div class="tile-plate">
           <div class="tile-card">
             <img class="f" src="${src(p, a, c, !big)}" ${set(a)} width="720" height="900" alt="${p.name}" loading="lazy" decoding="async" draggable="false">
-            <img class="b" src="${src(p, z, c, !big)}" ${set(z)} width="720" height="900" alt="" loading="lazy" decoding="async" draggable="false">
+            <img class="b" ${fine ? `src="${src(p, z, c, !big)}" ${set(z)}` : `data-src="${src(p, z, c, true)}"`} width="720" height="900" alt="" loading="lazy" decoding="async" draggable="false">
             <i class="tile-glare"></i>
           </div>
+          <span class="tile-dots" aria-hidden="true"><i></i><i></i></span>
         </div>
         <div class="tile-meta"><span class="tile-name">${p.name}</span><span class="tile-right"><span class="tile-price">${money(p.price)}</span><span class="tile-sizes" aria-hidden="true">${p.sizes[0]} to ${p.sizes[p.sizes.length - 1]}</span></span></div>
       </a></li>`;
@@ -290,20 +293,28 @@
   function tileMotion(grid, tiles) {
     if (calm) return;
     if (!fine) {
-      const items = tiles.map(t => ({ t, f: $('.f', t), b: $('.b', t), a: $('a', t), was: -1 }));
-      scrubs.push(() => {
-        const h = innerHeight;
-        for (const it of items) {
-          if (it.t.hidden) continue;
-          const r = it.t.getBoundingClientRect();
-          if (r.bottom < 0 || r.top > h) continue;
-          const v = clamp((.6 - (r.top + r.height / 2) / h) / .2);
-          if (Math.abs(v - it.was) < .004) continue;
-          it.was = v;
-          setTurn(it.f, it.b, v);
-          it.a.dataset.flip = v > .5 ? 1 : 0;
-        }
-      });
+      // Touch: nothing moves while you scroll. A sideways swipe on a piece shows its other side.
+      const back = a => { const i = $('.b', a); if (i.dataset.src) { i.src = i.dataset.src; delete i.dataset.src; } };
+      let g = null, swiped = 0;
+      grid.addEventListener('touchstart', e => {
+        const a = e.target.closest('.tile a');
+        if (!a) { g = null; return; }
+        g = { a, x: e.touches[0].clientX, y: e.touches[0].clientY };
+        back(a);
+      }, { passive: true });
+      grid.addEventListener('touchmove', e => {
+        if (!g) return;
+        const dx = Math.abs(e.touches[0].clientX - g.x), dy = Math.abs(e.touches[0].clientY - g.y);
+        if (dy > 12 && dy > dx) { g = null; return; }
+        if (dx < 26) return;
+        const on = g.a.classList.toggle('flip');
+        g.a.dataset.flip = on ? 1 : 0;
+        g = null; swiped = performance.now();
+      }, { passive: true });
+      // the lift at the end of a swipe is not a tap
+      grid.addEventListener('click', e => {
+        if (performance.now() - swiped < 450) { e.preventDefault(); e.stopPropagation(); }
+      }, true);
       return;
     }
     const live = new Set(), state = new WeakMap();
@@ -520,6 +531,7 @@
       const r = tile && !tile.hidden && tile.getBoundingClientRect();
       const inView = r && r.bottom > 0 && r.top < innerHeight;
       if (!canMorph || !inView) return hide();
+      $$('img[data-src]', tile).forEach(i => { i.src = i.dataset.src; delete i.dataset.src; });
       const big = tile.classList.contains('big');   // feature tiles lead with the back
       const back = t > .5;
       const shown = $(big === back ? '.f' : '.b', tile);
@@ -688,7 +700,13 @@
     };
     /* Each cutout sits somewhere different in its frame. Measuring it lets every top end on the same
        line and every bottom start on it, so any two pieces meet at the waist. */
-    const seat = (img, key) => {
+    const REF = 56, TALL = { top: 1, bottom: .82 };   // inches across one cell, and each reel's height
+    const inches = p => {
+      const r = p.rows.find(x => x.name === 'Length');
+      const v = r ? r.inch[Math.min(1, r.inch.length - 1)] : 27;
+      return p.cat === 'Hoodies' ? v + 10 : p.cat === 'Tops' ? v + 2 : v;   // a hood stands above the measured length
+    };
+    const seat = (img, key, p) => {
       try {
         const c = document.createElement('canvas'); c.width = 40; c.height = 50;
         const g = c.getContext('2d', { willReadFrequently: true });
@@ -698,16 +716,20 @@
         let y0 = 0, y1 = 49;
         while (y0 < 49 && !filled(y0)) y0++;
         while (y1 > 0 && !filled(y1)) y1--;
-        img.style.setProperty('--dy', (key === 'top' ? (49 - y1) / 50 * 100 : -y0 / 50 * 100).toFixed(1) + '%');
+        // Every piece is drawn at the same inches-to-pixels scale, from its own size chart.
+        const line = key === 'top' ? (y1 + 1) / 50 : y0 / 50, cut = (y1 - y0 + 1) / 50;
+        img.style.setProperty('--oy', (line * 100).toFixed(1) + '%');
+        img.style.setProperty('--dy', ((key === 'top' ? 1 - line : -line) * 100).toFixed(1) + '%');
+        img.style.setProperty('--s', (inches(p) / cut / (REF * TALL[key])).toFixed(3));
       } catch (e) { /* the frame's own position is fine */ }
     };
     for (const key of ['top', 'bottom']) {
       const el = $(`[data-reel="${key}"]`), items = groups[key];
       el.innerHTML = items.map((p, i) => `<button type="button" class="reel-i" role="option" aria-selected="false" aria-label="${p.name}" data-i="${i}" tabindex="-1"><img src="${src(p, 'front', firstColour(p), true)}" srcset="${src(p, 'front', firstColour(p), true)} 720w,${src(p, 'front', firstColour(p))} 1200w" sizes="(pointer:coarse) 60vw,30vw" width="720" height="900" alt="" loading="lazy" decoding="async" draggable="false"></button>`).join('');
       const cells = $$('.reel-i', el);
-      cells.forEach(c => {
+      cells.forEach((c, i) => {
         const img = $('img', c);
-        if (img.complete && img.naturalWidth) seat(img, key); else img.addEventListener('load', () => seat(img, key), { once: true });
+        if (img.complete && img.naturalWidth) seat(img, key, items[i]); else img.addEventListener('load', () => seat(img, key, items[i]), { once: true });
       });
       let at = -1, down = null, moved = false, gliding = 0, glideRaf = 0;
       const centre = i => cells[i].offsetLeft + cells[i].offsetWidth / 2 - el.clientWidth / 2;

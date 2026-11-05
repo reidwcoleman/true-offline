@@ -272,6 +272,7 @@ async function start() {
   const wrap = canvas.parentNode;
   const hero = document.querySelector('#hero'), turn = document.querySelector('#turn');
   const fadeEl = document.querySelector('[data-hero-fade]'), foot = document.querySelector('[data-hero-foot]');
+  const turnPin = document.querySelector('.turn-pin');
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: LITE, powerPreference: 'high-performance' });
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -575,10 +576,25 @@ async function start() {
   const heroLettersWide = lettersOf(ringWide), heroLettersTall = lettersOf(ringTall);
   stops.forEach(s => { s.letters = lettersOf(s.wordRing); });
   const lp = new THREE.Vector3();
-  function reactLetters(list, dt, w, h) {
-    const reach = Math.max(120, w * .1);
-    for (const m of list) {
+  function reactLetters(list, dt, w, h, exit = 0, rise = 1) {
+    const reach = Math.max(120, w * .1), n = list.length;
+    let edge = .001;
+    for (const m of list) edge = Math.max(edge, Math.abs(m.userData.letter.a));
+    list.forEach((m, i) => {
       const L = m.userData.letter;
+      // from the middle outward, each letter lifts away past the lens
+      const rank = Math.abs(L.a) / edge;
+      const away = silk(clamp((exit * 2.5 - rank * .55) / .85));
+      const up = silk(clamp(rise * 1.6 - (i / n) * .6));
+      m.visible = away < .995 && up > .004;
+      if (!m.visible) return;
+      if (away > 0 || up < 1) {
+        const side = L.a >= 0 ? 1 : -1, turn = i % 2 ? 1 : -1;
+        m.position.set(L.x + side * away * (3 + rank * 7), L.y + away * turn * (1 + rank * 1.6) - (1 - up) * 3.4, L.z + away * 11);
+        m.rotation.set(away * turn * 1.9, L.ry + away * side * 1.5, away * turn * .5);
+        m.scale.setScalar(1);
+        return;
+      }
       lp.setFromMatrixPosition(m.matrixWorld).project(camera);
       L.sx = (lp.x * .5 + .5) * w; L.sy = (-lp.y * .5 + .5) * h;
       const dx = L.sx - mx, dy = L.sy - my;
@@ -590,7 +606,7 @@ async function start() {
       m.position.set(L.x + Math.sin(L.a) * out, L.y + L.lift * .16, L.z + Math.cos(L.a) * out);
       m.rotation.set(clamp(dy / reach, -1, 1) * -.5 * L.lift, L.ry + clamp(dx / reach, -1, 1) * .7 * L.lift + L.flip, 0);
       m.scale.setScalar(1 + L.lift * .12);
-    }
+    });
   }
   const liveLetters = () => (portrait ? heroLettersTall : heroLettersWide);
 
@@ -668,6 +684,7 @@ async function start() {
     const sc = portrait ? clamp(headroom / 3.4, .34, .78) : clamp(hw / 9.2, .7, 1.25);
     treeL.position.set(-hw - .4, hh + .1, zT);
     treeR.position.set(hw + .4, hh + .25, zT - 1.4);
+    treeL.userData.x = treeL.position.x; treeR.userData.x = treeR.position.x;
     treeL.scale.setScalar(sc); treeR.scale.setScalar(sc * .92);
     camera.updateProjectionMatrix();
   };
@@ -682,7 +699,7 @@ async function start() {
     rayDir.set(cx / wrap.clientWidth * 2 - 1, 1 - cy / wrap.clientHeight * 2, .5).unproject(camera).sub(camera.position).normalize();
   };
   addEventListener('pointermove', e => {
-    if (e.pointerType === 'touch' && !drag) return;
+    if (e.pointerType === 'touch') return;
     tx = e.clientX / innerWidth - .5; ty = e.clientY / innerHeight - .5;
     mx = e.clientX; my = e.clientY; pointerOn = true;
   }, { passive: true });
@@ -690,22 +707,30 @@ async function start() {
 
   let drag = null, spin = 0, extra = 0, tiltX = 0, idleAt = -1e4;
   canvas.addEventListener('pointerdown', e => {
-    drag = { last: e.clientX, lastY: e.clientY, x: e.clientX, y: e.clientY, t: performance.now(), far: false };
+    const touch = e.pointerType === 'touch';
+    drag = { last: e.clientX, lastY: e.clientY, x: e.clientX, y: e.clientY, t: performance.now(), far: false, touch, live: !touch };
+    if (touch) return;                           // the page keeps the finger until it proves it means to spin
     mx = e.clientX; my = e.clientY; pointerOn = true;
     canvas.setPointerCapture(e.pointerId);
   });
   canvas.addEventListener('pointermove', e => {
     if (!drag) return;
+    if (!drag.live) {
+      const ax = Math.abs(e.clientX - drag.x), ay = Math.abs(e.clientY - drag.y);
+      if (ax + ay < 10) return;
+      if (ax < ay * 1.4) { drag = null; return; }
+      drag.live = true; drag.last = e.clientX; drag.lastY = e.clientY;
+    }
     const dx = e.clientX - drag.last, dy = e.clientY - drag.lastY;
     drag.last = e.clientX; drag.lastY = e.clientY;
     if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 7) drag.far = true;
-    extra += dx * .0095; spin = dx * .0095;
-    tiltX = clamp(tiltX + dy * .0045, -.55, .55);
+    const k = drag.touch ? .012 : .0095;
+    extra += dx * k; spin = dx * k;
+    if (!drag.touch) tiltX = clamp(tiltX + dy * .0045, -.55, .55);
   });
   const up = e => {
-    const tap = drag && !drag.far && performance.now() - drag.t < 400;
+    const tap = drag && !drag.touch && !drag.far && performance.now() - drag.t < 400;
     drag = null; idleAt = performance.now();
-    if (e.pointerType === 'touch') pointerOn = false;
     if (tap && e.type === 'pointerup') tapAt(e.clientX, e.clientY);
   };
   canvas.addEventListener('pointerup', up);
@@ -748,6 +773,15 @@ async function start() {
   let N_live = N, orbitAngle = 1, samples = 0, slow = 0, tuned = false, showTime = 0, inGalleryNow = false, sp = 0, sPos = 0;
   const tint = new THREE.Color(0xff9fbe), tmp = new THREE.Color();
 
+  // Only touch the page when a value really changes, so a frame costs the browser nothing it can avoid.
+  const wrote = new Map();
+  const set = (el, k, v) => {
+    const key2 = k + (el === fadeEl ? 0 : el === foot ? 1 : 2);
+    if (wrote.get(key2) === v) return;
+    wrote.set(key2, v);
+    el.style[k] = v;
+  };
+
   function frame(now) {
     if (!visible && !calm) return;
     const dt = Math.min(.05, (now - last) / 1000); last = now;
@@ -765,8 +799,8 @@ async function start() {
     if (Math.abs(rawP - sp) < .0004) sp = rawP;
     if (Math.abs(rawPos - sPos) < .0006) sPos = rawPos;
     const p = sp, pos = sPos;
-    const dive = smooth(.04, .9, p);
-    const inGallery = p >= .985;
+    const dive = silk(clamp((p - .015) / .955));
+    const inGallery = p >= .985 || (calm && rawPos > 0);
 
     px += (tx - px) * damp(5, dt); py += (ty - py) * damp(5, dt);
     inGalleryNow = inGallery;
@@ -806,37 +840,43 @@ async function start() {
 
     if (!inGallery) {
       // It shows its back, turns to show the front, then comes back round: both sides, little edge-on.
-      if (!calm && !drag) showTime += dt * (1 - dive);
+      if (!calm && !drag) showTime += dt * (1 - smooth(0, .03, p));
       const c = showTime % 14, turns = Math.floor(showTime / 14);
       const a = c < 6.2 ? 0 : c < 8 ? silk((c - 6.2) / 1.8) : c < 12.2 ? 1 : 1 + silk((c - 12.2) / 1.8);
       const shown = (turns * 2 + a) * Math.PI;
       const homeBack = Math.round(shown / (Math.PI * 2)) * Math.PI * 2;
-      const sway = calm ? .22 : Math.sin(t * .42) * .26 * (1 - dive);
-      const lean = 1 - dive;
-      hoodie.rotation.y = Math.PI + lerp(shown, homeBack, smooth(0, .4, dive)) + sway + extra * lean + (1 - inn) * -Math.PI * 1.2 + px * .55 * lean + swapSpin;
+      const lean = 1 - smooth(0, .3, dive);
+      const sway = calm ? .22 : Math.sin(t * .42) * .26 * lean;
+      // Scrolling winds it through a full turn that lands square on the back print.
+      const wind2 = silk(clamp(dive / .64));
+      hoodie.rotation.y = Math.PI + lerp(shown, homeBack + Math.PI * 2, wind2) + sway + extra * lean + (1 - inn) * -Math.PI * 1.2 + px * .55 * lean + swapSpin;
       hoodie.rotation.x = (py * .2 + tiltX) * lean;
       hoodie.position.x = px * .4 * lean;
       hoodie.position.y = lerp(-13, .05, inn) + Math.sin(t * .8) * .09 * lean - py * .2 * lean;
       hoodie.rotation.z = Math.sin(t * .55) * .012 - px * .03 * lean;
       hoodie.scale.setScalar(swapScale);
 
-      if (!calm) orbitAngle += dt * (.34 + (1 - inn) * 1.6);
+      if (!calm) orbitAngle += dt * (.34 + (1 - inn) * 1.6 + dive * 2.6);
       orbit.rotation.y = orbitAngle;
       // the ring swings in, then rests facing you so the words can be read
       const swing = (1 - inn) * -2.2 + Math.sin(t * .31) * .05 + px * .16;
       ringWide.rotation.y = ringTall.rotation.y = swing;
-      const open = 1 + dive * 1.5;
-      ringTilt.scale.set(open * lerp(1.5, 1, inn), 1 + dive * .5, open * lerp(1.5, 1, inn));
-      ringTilt.rotation.x = TILT - dive * .3;
-      ringTilt.position.y = (portrait ? -3.5 : DROP) - dive * 2.4;
+      const open = 1 + dive * dive * 2.2;
+      ringTilt.visible = dive < .8;
+      ringTilt.scale.set(open * lerp(1.5, 1, inn), 1, open * lerp(1.5, 1, inn));
+      ringTilt.rotation.x = TILT - dive * .22;
+      ringTilt.position.y = (portrait ? -3.5 : DROP) - dive * 1.6;
       rig.position.y = portrait ? .85 * (1 - dive) : 0;
-      orbitTilt.scale.setScalar(lerp(1.6, 1, inn) + dive * 1.2);
+      orbitTilt.scale.setScalar(lerp(1.6, 1, inn) + dive * .7);
       rig.rotation.y = px * .16;
       rig.rotation.x = py * .08;
       treeL.rotation.z = Math.sin(t * .6) * .007 + Math.sin(t * 7) * gust * .018;
       treeR.rotation.z = Math.sin(t * .5 + 1) * .008 + Math.sin(t * 6.3 + 1) * gust * .02;
-      trees.position.y = (1 - inn) * 5 + dive * 7;
-      trees.position.z = dive * 5;
+      // the branches part like curtains
+      const part = silk(clamp(dive / .6));
+      trees.position.y = (1 - inn) * 5 + part * 4;
+      treeL.position.x = treeL.userData.x - part * 7;
+      treeR.position.x = treeR.userData.x + part * 7;
     } else {
       let best = 0, bestV = 9;
       stops.forEach((s, i) => {
@@ -848,11 +888,15 @@ async function start() {
         if (!on) return;
         const en = i === 0 ? 1 : silk(clamp((local + .16) / .32));
         const lv = i === STOPS.length - 1 ? 0 : silk(clamp((local - .84) / .32));
-        const turnT = silk(clamp((local - .06) / .46));
-        s.body.rotation.y = turnT * Math.PI + (1 - en) * -1.3 + lv * 1.3 + (calm ? Math.PI : 0) + extra + Math.sin(t * .5) * .05 + px * .5;
+        // The first piece comes up out of the dark, spinning, from the other side of the dive.
+        const arrive = i === 0 && !calm ? silk(clamp(local / .44)) : 1;
+        const turnT = silk(clamp((local - (i ? .06 : .24)) / .46));
+        // Pieces ride a wide carousel: in from one side, round and away out of the other.
+        const th = (1 - en) * 1.3 - lv * 1.3;
+        s.body.rotation.y = turnT * Math.PI + th * 1.15 + (1 - arrive) * -Math.PI * 2.4 + (calm ? Math.PI : 0) + extra + Math.sin(t * .5) * .05 + px * .5;
         s.body.rotation.x = py * .18 + tiltX;
-        s.body.position.set((1 - en) * viewW * .95 - lv * viewW * .95, .42 + Math.sin(t * .8 + i) * .06, 0);
-        s.wordRing.rotation.y = (1 - en) * 1.7 - lv * 1.7 + px * .1;
+        s.body.position.set(Math.sin(th) * viewW * .82, .42 + Math.sin(t * .8 + i) * .06 - (1 - arrive) * 1.2, (Math.cos(th) - 1) * 15 - (1 - arrive) * 32);
+        s.rise = Math.min(arrive, en) * (1 - lv);
         s.tilt.scale.setScalar(portrait ? clamp(viewW / 15.5, .5, 1) : 1);
       });
       tmp.copy(stops[best].tint);
@@ -860,7 +904,7 @@ async function start() {
     }
     if (!inGallery) tint.lerp(heroTint, damp(4, dt));
     halo.material.color.copy(tint);
-    halo.scale.setScalar(portrait ? .72 : 1);
+    halo.scale.setScalar((portrait ? .72 : 1) * (inGallery ? 1 : 1 + dive * 1.5));
     rimB.color.copy(tint);
     rimShared.rimColor.value.copy(tint);
 
@@ -870,21 +914,35 @@ async function start() {
     nebula.rotation.z = t * .012;
     far.rotation.y = t * .004; near.rotation.y = -t * .009;
 
-    // camera: pushes into the back print, then settles for the featured pieces
-    const z = inGallery ? fitD * (portrait ? 1.02 : .98) : lerp(fitD, 5.6, dive);
+    // Camera: swings round the turning hoodie and closes on the print at a constant felt speed,
+    // straight through the fabric, then settles for the featured pieces.
+    // Three beats: swing in while it turns, hold on the print so it can be seen, then plunge.
+    const hold = portrait ? fitD * .6 : 7.6, near2 = hold * .8;
+    const geo = (a, b, k) => a * Math.pow(b / a, k);
+    const plunge = clamp((dive - .86) / .14);
+    const z = inGallery ? fitD * (portrait ? 1.02 : .98)
+      : plunge > 0 ? geo(near2, 1.5, plunge * plunge)
+      : dive > .62 ? lerp(hold, near2, smooth(.62, .86, dive))
+      : geo(fitD, hold, silk(dive / .62));
     scene.fog.near = z + 1.5; scene.fog.far = z + 24;
     if (inGallery) {
+      camera.up.set(0, 1, 0);
       camera.position.set(px * .9, .3 - py * .5, z);
       camera.lookAt(0, portrait ? -.2 : -.5, 0);
     } else {
-      camera.position.set(px * 1.1 * (1 - dive), lerp(.5, 1.4, dive) - py * .6 * (1 - dive), z);
-      camera.lookAt(0, lerp(portrait ? -.2 : -.62, 1.15, dive), 0);
+      const sweep = Math.min(1, dive / .66);
+      const arc = Math.sin(Math.PI * sweep) * .46, still = 1 - dive;
+      const roll = Math.sin(Math.PI * sweep) * .07;
+      camera.up.set(Math.sin(roll), Math.cos(roll), 0);
+      const lift = silk(Math.min(1, dive / .62));
+      camera.position.set(Math.sin(arc) * z + px * 1.1 * still, lerp(.5, .22, lift) - py * .6 * still, Math.cos(arc) * z);
+      camera.lookAt(0, lerp(portrait ? -.2 : -.62, .22, lift), 0);
     }
 
     camera.updateMatrixWorld();
     if (!calm) {
-      if (inGallery) { for (const s of stops) if (s.pivot.visible) reactLetters(s.letters, dt, pw, ph); }
-      else if (dive < .5) reactLetters(liveLetters(), dt, pw, ph);
+      if (inGallery) { for (const s of stops) if (s.pivot.visible) reactLetters(s.letters, dt, pw, ph, 0, s.rise); }
+      else if (dive < .8) reactLetters(liveLetters(), dt, pw, ph, dive);
     }
 
     // petals: drift and tumble, swerve round the pointer, and on the dive stream past the lens
@@ -892,6 +950,7 @@ async function start() {
     const half = viewW * .72;
     if (pointerOn) aim(mx, my);
     const fade = Math.exp(-dt * 1.9), PUSH = 2.5;
+    const whirl = inGallery ? 0 : dive * 1.7 * dt;   // the petals are drawn into a slow vortex
     for (let i = 0; i < N_live; i++) {
       const q = P[i];
       if (!calm) {
@@ -909,7 +968,9 @@ async function start() {
         q.y += (q.vy - q.fall) * dt;
         q.x += (wind + q.vx + Math.sin(t * q.f + q.ph) * q.a) * dt;
         q.z += (Math.cos(t * q.f * .7 + q.ph) * .22 + rush + q.vz) * dt;
+        if (whirl) { const ox = q.x, oy = q.y - .5; q.x -= oy * whirl; q.y += ox * whirl; }
         if (q.y < -11) { q.y = 11.5; q.x = (pr() - .5) * half * 2; q.vx = q.vy = 0; }
+        else if (q.y > 13) q.y = -10.5;
         if (q.x > half) q.x = -half; else if (q.x < -half) q.x = half;
         if (q.z > z - 1.2) q.z = -11;
       }
@@ -922,9 +983,13 @@ async function start() {
     petals.instanceMatrix.needsUpdate = true;
     petals.count = inGallery ? Math.round(N_live * .4) : N_live;
 
-    fadeEl.style.opacity = smooth(.74, .97, p) * (1 - smooth(.02, .14, pos));
-    foot.style.opacity = 1 - smooth(.02, .16, p);
-    foot.style.pointerEvents = p > .1 ? 'none' : '';
+    // The moment of breaking through: the print blooms to light, and the dark on the far side opens.
+    set(fadeEl, 'opacity', (smooth(.925, .985, p) * (1 - smooth(.03, .24, pos))).toFixed(3));
+    set(foot, 'opacity', (1 - smooth(.01, .1, p)).toFixed(3));
+    set(foot, 'visibility', p > .1 ? 'hidden' : 'visible');
+    const overlay = calm ? 1 : smooth(.26, .5, pos);
+    set(turnPin, 'opacity', overlay.toFixed(3));
+    set(turnPin, 'visibility', overlay > 0 ? 'visible' : 'hidden');
 
     if (finish) finish.uniforms.t.value = t % 10;
     draw(dt);
@@ -970,7 +1035,7 @@ async function start() {
   };
 
   // The page drives the piece picker through this.
-  window.TO_hero = { pick, state: () => ({ piece: PIECES[shownPiece][0], flips, bursts }) };
+  window.TO_hero = { pick, state: () => ({ piece: PIECES[shownPiece][0], flips, bursts, spun: Math.abs(extra) + Math.abs(spin) }) };
 
   // Compile everything before showing it, so the first visible frame does not hitch.
   await renderer.compileAsync(scene, camera);
