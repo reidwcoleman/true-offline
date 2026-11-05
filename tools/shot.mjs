@@ -14,7 +14,9 @@ async function run(name, vp, mobile) {
   p.on('pageerror', e => errs.push(name + ': ' + e.message));
   p.on('requestfailed', r => errs.push(name + ' FAILED ' + r.url()));
   await p.goto(URL, { waitUntil: 'networkidle' });
-  await p.waitForTimeout(1800);
+  await p.waitForTimeout(650);
+  await p.screenshot({ path: `${out}/${name}-0intro.jpg`, quality: 80, type: 'jpeg' });
+  await p.waitForTimeout(2200);
   await p.screenshot({ path: `${out}/${name}-1hero.jpg`, quality: 80, type: 'jpeg' });
   const turn = await p.evaluate(() => { const s = document.querySelector('#turn'); return { top: s.offsetTop, h: s.offsetHeight - innerHeight }; });
   for (const [i, f] of [[0, .05], [1, .2], [2, .33], [3, .7]]) {
@@ -22,8 +24,11 @@ async function run(name, vp, mobile) {
     await p.waitForTimeout(350);
     await p.screenshot({ path: `${out}/${name}-2turn${i}.jpg`, quality: 80, type: 'jpeg' });
   }
+  await p.evaluate(() => document.querySelector('#closeup').scrollIntoView({ behavior: 'instant' }));
+  await p.waitForTimeout(1300);
+  await p.screenshot({ path: `${out}/${name}-2close.jpg`, quality: 80, type: 'jpeg' });
   await p.evaluate(() => document.querySelector('#shop').scrollIntoView({ behavior: 'instant' }));
-  await p.waitForTimeout(700);
+  await p.waitForTimeout(1300);
   await p.screenshot({ path: `${out}/${name}-3shop.jpg`, quality: 80, type: 'jpeg' });
   await p.evaluate(() => document.querySelector('#offline').scrollIntoView({ behavior: 'instant' }));
   await p.waitForTimeout(500);

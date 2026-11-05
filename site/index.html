@@ -16,6 +16,16 @@
 <link rel="preload" href="fonts/archivo-italic.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="img/logo-grey-washed-box-hoodie-back.webp" as="image" type="image/webp">
 <link rel="stylesheet" href="style.css">
+<script>
+/* The intro plays once per visit. It is pure CSS, so a script failure can never leave it covering the page. */
+(function () {
+  var d = document.documentElement;
+  d.classList.add('js');
+  var seen = false;
+  try { seen = sessionStorage.getItem('to-intro') === '1'; sessionStorage.setItem('to-intro', '1'); } catch (e) {}
+  if (!seen && !location.hash && !matchMedia('(prefers-reduced-motion: reduce)').matches) d.classList.add('intro');
+})();
+</script>
 </head>
 <body>
 <a class="skip" href="#shop">Skip to the shop</a>
@@ -24,14 +34,27 @@
   <symbol id="star" viewBox="0 0 332 199"><path d="M135 0 137 74 332 60 147 114 150 195 87 147 17 199 57 127 0 82 90 78Z"/></symbol>
 </svg>
 
+<div class="intro-layer" aria-hidden="true">
+  <svg class="stack" viewBox="-70 -40 404 244">
+    <use class="s1" href="#star" width="332" height="199"/>
+    <use class="s2" href="#star" width="332" height="199"/>
+    <use class="s3" href="#star" width="332" height="199"/>
+  </svg>
+</div>
+
 <header class="bar">
   <a class="bar-mark" href="#top" aria-label="True Offline, back to top">
-    <svg class="star-i" aria-hidden="true"><use href="#star"/></svg>
+    <svg class="bar-star" viewBox="-44 -24 378 226" aria-hidden="true">
+      <use class="s1" href="#star" width="332" height="199"/>
+      <use class="s2" href="#star" width="332" height="199"/>
+      <use class="s3" href="#star" width="332" height="199"/>
+    </svg>
     <span>True Offline</span>
   </a>
   <nav class="bar-nav" aria-label="Main">
-    <a href="#shop">Shop</a>
-    <a href="#offline">Offline</a>
+    <a class="ul" href="#shop">Shop</a>
+    <a class="ul" href="#closeup">Up close</a>
+    <a class="ul" href="#offline">Offline</a>
   </nav>
   <p class="bar-status" role="status"><i class="dot"></i><span data-net-label>Online</span></p>
 </header>
@@ -49,24 +72,34 @@
   </div>
   <div class="hero-foot">
     <p class="hero-line" data-hero-line>Clothes for outside.</p>
-    <a class="hero-cta" href="#shop">Shop all 20 <span aria-hidden="true">&darr;</span></a>
+    <p class="hero-coord">35.78&deg; N&ensp;78.64&deg; W</p>
+    <a class="cta" href="#shop"><span>Shop all 20</span><span class="cta-arrow" aria-hidden="true">&darr;</span></a>
   </div>
 </section>
 
 <section class="turn" id="turn" aria-label="Featured back prints">
   <div class="turn-pin">
+    <div class="turn-word" aria-hidden="true" data-turn-words></div>
     <div class="turn-head">
       <h2>The back<br>is the point.</h2>
-      <p class="turn-count"><span data-turn-i>1</span> / <span data-turn-n>4</span></p>
+      <div class="ticks" data-ticks aria-hidden="true"></div>
     </div>
     <div class="turn-stage" data-turn-stage></div>
     <div class="turn-copy" data-turn-copy aria-live="polite"></div>
   </div>
 </section>
 
+<section class="closeup" id="closeup" aria-labelledby="close-h">
+  <div class="close-head">
+    <h2 id="close-h" class="mask"><span>Up close.</span></h2>
+    <p class="rv">Printed, washed and faded. The details are the reason to look twice.</p>
+  </div>
+  <ul class="bento" data-bento></ul>
+</section>
+
 <section class="shop" id="shop" aria-labelledby="shop-h">
   <div class="shop-head">
-    <h2 id="shop-h">The line</h2>
+    <h2 id="shop-h" data-stretch>The line</h2>
     <div class="chips" role="group" aria-label="Filter by type" data-chips></div>
   </div>
   <ul class="grid" data-grid></ul>
@@ -74,23 +107,33 @@
 </section>
 
 <section class="off" id="offline" aria-labelledby="off-h">
-  <svg class="off-star" aria-hidden="true"><use href="#star"/></svg>
+  <svg class="off-stack" viewBox="-110 -60 480 300" aria-hidden="true">
+    <use class="s1" href="#star" width="332" height="199"/>
+    <use class="s2" href="#star" width="332" height="199"/>
+    <use class="s3" href="#star" width="332" height="199"/>
+  </svg>
   <div class="off-in">
     <h2 id="off-h" data-off-title>Turn your wifi off.</h2>
     <p class="off-sub" data-off-sub>Go on. This site saves itself to your device, so all twenty pieces stay right here with no signal. It seemed like the least we could do.</p>
-    <dl class="off-read">
-      <div><dt>Connection</dt><dd data-net-label>Online</dd></div>
-      <div><dt>Saved on this device</dt><dd data-saved>Checking</dd></div>
-    </dl>
+    <div class="off-row">
+      <button class="switch" type="button" role="switch" aria-checked="false" data-switch>
+        <span class="switch-track"><span class="switch-thumb"><svg aria-hidden="true"><use href="#star"/></svg></span></span>
+        <span class="switch-label">Preview offline</span>
+      </button>
+      <dl class="off-read">
+        <div><dt>Connection</dt><dd data-net-label>Online</dd></div>
+        <div><dt>Saved on this device</dt><dd data-saved>Checking</dd></div>
+      </dl>
+    </div>
   </div>
 </section>
 
 <section class="facts" aria-label="Shipping and returns">
   <dl>
-    <div><dt>Shipping</dt><dd>Free on everything here.</dd></div>
-    <div><dt>Delivery</dt><dd>Ships from China. About two weeks to the US.</dd></div>
-    <div><dt>Returns</dt><dd>Returns and exchanges accepted.</dd></div>
-    <div><dt>Checkout</dt><dd>Secure through Etsy, with Purchase Protection.</dd></div>
+    <div class="rv"><dt>Shipping</dt><dd>Free on everything here.</dd></div>
+    <div class="rv" style="--d:60ms"><dt>Delivery</dt><dd>Ships from China. About two weeks to the US.</dd></div>
+    <div class="rv" style="--d:120ms"><dt>Returns</dt><dd>Returns and exchanges accepted.</dd></div>
+    <div class="rv" style="--d:180ms"><dt>Checkout</dt><dd>Secure through Etsy, with Purchase Protection.</dd></div>
   </dl>
 </section>
 
@@ -100,22 +143,25 @@
   <div class="foot-row">
     <p>Raleigh, North Carolina</p>
     <ul>
-      <li><a href="https://www.etsy.com/shop/TrueOffline" rel="noopener">Etsy</a></li>
-      <li><a href="https://www.instagram.com/trueoffline.clothing/" rel="noopener">Instagram</a></li>
+      <li><a class="ul" href="https://www.etsy.com/shop/TrueOffline" rel="noopener">Etsy</a></li>
+      <li><a class="ul" href="https://www.instagram.com/trueoffline.clothing/" rel="noopener">Instagram</a></li>
     </ul>
   </div>
-  <p class="foot-wm" aria-hidden="true">True Offline</p>
+  <p class="foot-wm" aria-hidden="true" data-stretch="end">True Offline</p>
 </footer>
 
 <div class="sheet" data-sheet role="dialog" aria-modal="true" aria-labelledby="sheet-name" hidden>
   <div class="sheet-view">
-    <div class="sheet-stage" data-sheet-stage tabindex="0" role="slider" aria-label="Turn the garment. Use the left and right arrow keys." aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Front">
+    <div class="sheet-stage" data-sheet-stage data-cursor="Drag" tabindex="0" role="slider" aria-label="Turn the garment. Use the left and right arrow keys." aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Front">
       <img class="f" data-sf alt="" draggable="false">
       <img class="b" data-sb alt="" draggable="false">
     </div>
     <div class="sheet-turn" role="group" aria-label="View">
-      <button type="button" data-side="0" aria-pressed="true">Front</button>
-      <button type="button" data-side="1" aria-pressed="false">Back</button>
+      <div class="seg">
+        <i class="seg-ind" data-seg-ind></i>
+        <button type="button" data-side="0" aria-pressed="true">Front</button>
+        <button type="button" data-side="1" aria-pressed="false">Back</button>
+      </div>
       <span class="sheet-hint">Drag to turn</span>
     </div>
   </div>
@@ -153,11 +199,16 @@
     <blockquote class="sheet-review" data-s-review hidden></blockquote>
 
     <div class="sheet-nav">
-      <button type="button" data-prev>Previous</button>
-      <button type="button" data-next>Next</button>
+      <button class="ul" type="button" data-prev>Previous</button>
+      <button class="sheet-next" type="button" data-next>
+        <span class="sheet-next-t"><small>Next piece</small><span data-next-name></span></span>
+        <img data-next-img alt="" width="72" height="90">
+      </button>
     </div>
   </div>
 </div>
+
+<div class="cur" aria-hidden="true" data-cur></div>
 
 <script src="data.js"></script>
 <script src="app.js"></script>

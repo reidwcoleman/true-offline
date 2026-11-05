@@ -3,7 +3,7 @@ Run from the repo root: python3 tools/build_assets.py
 """
 import json, subprocess
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 from scipy import ndimage as ni
 
 RAW, OUT = 'raw', 'site/img'
@@ -38,6 +38,12 @@ def cut(path, tmp):
         a[~np.isin(lab3, [i + 1 for i, s in enumerate(sizes) if s > big * 0.01])] = 0
     return Image.fromarray(np.dstack([out, (a * 255).astype(np.uint8)]).astype(np.uint8), 'RGBA')
 
+def sharpen(im):
+    # Runs before framing, while colour still extends past the alpha edge, so no halo forms.
+    *rgb, a = im.split()
+    s = Image.merge('RGB', rgb).filter(ImageFilter.UnsharpMask(1.6, 75, 2))
+    return Image.merge('RGBA', (*s.split(), a))
+
 def frame(im):
     bbox = im.getchannel('A').point(lambda v: 255 if v > 12 else 0).getbbox()
     g = im.crop(bbox)
@@ -57,10 +63,10 @@ def main():
         for colour, (f, b) in views.items():
             for side, n in (('front', f), ('back', b)):
                 tmp = 'raw/mask/_m.png'
-                im = frame(cut(f'{RAW}/{i}/{n}.jpg', tmp))
+                im = frame(sharpen(cut(f'{RAW}/{i}/{n}.jpg', tmp)))
                 name = f"{l['slug']}{'-' + colour if colour else ''}-{side}"
                 im.save(f'{OUT}/{name}.webp', quality=86, method=6)
-                im.resize((640, 800), Image.LANCZOS).save(f'{OUT}/{name}-s.webp', quality=80, method=6)
+                im.resize((720, 900), Image.LANCZOS).save(f'{OUT}/{name}-s.webp', quality=80, method=6)
                 print(name, flush=True)
 
 main()

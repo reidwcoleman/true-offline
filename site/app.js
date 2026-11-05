@@ -4,11 +4,25 @@
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fine = matchMedia('(pointer:fine)').matches;
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   const money = n => '$' + n.toFixed(2);
+  const bySlug = s => P.find(p => p.slug === s);
   const src = (p, side, colour, small) =>
     `img/${p.img}${colour ? '-' + colour : ''}-${side}${small ? '-s' : ''}.webp`;
   const firstColour = p => (p.colours ? p.colours[0].key : '');
+  const canMorph = !!document.startViewTransition && !calm;
+
+  /* One scroll loop for everything scrubbed, so a frame only ever pays for one layout read pass. */
+  const scrubs = [];
+  let ticking = false;
+  const runScrubs = () => { ticking = false; for (const f of scrubs) f(); };
+  addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(runScrubs);
+  }, { passive: true });
+  addEventListener('resize', runScrubs);
 
   /* A garment "turning": cross-dissolve the two views while the width dips, so it reads as a
      rotation without ever showing a paper-thin edge. t: 0 = front, 1 = back. */
@@ -25,7 +39,7 @@
   function sky() {
     const c = $('.sky'), g = c.getContext('2d');
     const star = new Path2D('M135 0 137 74 332 60 147 114 150 195 87 147 17 199 57 127 0 82 90 78Z');
-    let W, H, D, stars = [], meteor = null, next = 1400, last = 0, live = true;
+    let W, H, D, stars = [], meteor = null, next = 2600, last = 0, live = true;
     const size = () => {
       D = Math.min(devicePixelRatio || 1, 2);
       W = c.clientWidth; H = c.clientHeight;
@@ -82,105 +96,177 @@
     requestAnimationFrame(t => { last = t; draw(t); });
   }
 
-  /* ---------- hero parallax ---------- */
+  /* ---------- hero depth ---------- */
   function heroMotion() {
     if (calm) return;
-    const piece = $('.hero-piece');
+    const piece = $('.hero-piece'), wm = $('.wm');
     let px = 0, py = 0, tx = 0, ty = 0, raf = 0;
     const paint = () => {
       px += (tx - px) * .08; py += (ty - py) * .08;
       const s = scrollY;
-      piece.style.transform = `translate3d(${px}px,${py - s * .12}px,0)`;
+      piece.style.transform = `translate3d(${px}px,${py - s * .14}px,0)`;
+      wm.style.transform = `translate3d(${px * -.25}px,${s * .1 + py * -.25}px,0)`;
       raf = Math.abs(tx - px) + Math.abs(ty - py) > .1 ? requestAnimationFrame(paint) : 0;
     };
     const kick = () => { if (!raf) raf = requestAnimationFrame(paint); };
     piece.addEventListener('animationend', () => { piece.style.animation = 'none'; kick(); }, { once: true });
-    if (matchMedia('(pointer:fine)').matches) {
+    if (fine) {
       addEventListener('pointermove', e => {
-        tx = (e.clientX / innerWidth - .5) * -16;
-        ty = (e.clientY / innerHeight - .5) * -10;
+        tx = (e.clientX / innerWidth - .5) * -18;
+        ty = (e.clientY / innerHeight - .5) * -11;
         kick();
       }, { passive: true });
     }
-    addEventListener('scroll', () => { if (scrollY < innerHeight * 1.2) kick(); }, { passive: true });
+    scrubs.push(() => { if (scrollY < innerHeight * 1.2) kick(); });
   }
 
   /* ---------- the back is the point ---------- */
   function turnSection() {
-    const picks = ['graphic-ripped-boxy-hoodie', 'deep-red-logo-zip-hoodie', '2018-wc-faded-hoodie', 'dirty-faded-flare-zip-hoodie']
-      .map(s => P.find(p => p.slug === s));
+    const picks = [
+      ['graphic-ripped-boxy-hoodie', 'Pagoda', '#D6246E'],
+      ['deep-red-logo-zip-hoodie', 'Globe', '#B23A63'],
+      ['2018-wc-faded-hoodie', 'Rooster', '#E2521C'],
+      ['dirty-faded-flare-zip-hoodie', 'Dreamer', '#E9D3B0'],
+    ].map(([s, word, tint]) => ({ p: bySlug(s), word, tint }));
     const stage = $('[data-turn-stage]'), copy = $('[data-turn-copy]'), sec = $('#turn');
-    const idx = $('[data-turn-i]');
-    $('[data-turn-n]').textContent = picks.length;
-    const gs = picks.map(p => {
+    const words = $('[data-turn-words]'), ticks = $('[data-ticks]');
+    ticks.innerHTML = picks.map(() => '<i><b></b></i>').join('');
+    const bars = $$('b', ticks);
+    const gs = picks.map(({ p, word, tint }) => {
       const d = document.createElement('div');
       d.className = 'turn-g';
+      d.style.setProperty('--tint', tint);
       d.innerHTML = `<img class="f" src="${src(p, 'front')}" alt="" loading="lazy"><img class="b" src="${src(p, 'back')}" alt="Back of the ${p.name}" loading="lazy">`;
       stage.append(d);
-      return { el: d, f: $('.f', d), b: $('.b', d) };
+      const w = document.createElement('span');
+      w.textContent = word;
+      w.style.setProperty('--tint', tint);
+      words.append(w);
+      return { el: d, f: $('.f', d), b: $('.b', d), w };
     });
     let shown = -1;
     const show = i => {
       if (i === shown) return;
       shown = i;
-      const p = picks[i];
-      idx.textContent = i + 1;
-      copy.innerHTML = `<p class="turn-name">${p.name}</p><p class="turn-note">${p.note}</p><a class="turn-link" href="#/${p.slug}">View, ${money(p.price)}</a>`;
+      const { p } = picks[i];
+      copy.innerHTML = `<p class="turn-name">${p.name}</p><p class="turn-note">${p.note}</p><a class="turn-link ul" href="#/${p.slug}">View piece, ${money(p.price)}</a>`;
     };
     const paint = () => {
       const r = sec.getBoundingClientRect();
-      const span = r.height - innerHeight;
       if (r.top > innerHeight || r.bottom < 0) return;
+      const span = r.height - innerHeight;
       const pos = clamp(-r.top / span) * picks.length;
-      const cur = Math.min(picks.length - 1, Math.floor(pos));
-      show(cur);
+      show(Math.min(picks.length - 1, Math.floor(pos)));
       gs.forEach((g, i) => {
         const local = pos - i;               // 0..1 while this garment is on stage
+        bars[i].style.transform = `scaleX(${clamp(local)})`;
         const on = local > -.12 && local < 1.12;
         g.el.style.visibility = on ? 'visible' : 'hidden';
+        g.w.style.visibility = on ? 'visible' : 'hidden';
         if (!on) return;
         const enter = i === 0 ? 1 : clamp((local + .12) / .24);
         const leave = i === picks.length - 1 ? 1 : 1 - clamp((local - .88) / .24);
-        g.el.style.opacity = Math.min(enter, leave);
-        const y = (1 - enter) * 60 - (1 - leave) * 60;
-        g.el.style.transform = `translate3d(0,${y}px,0)`;
+        const vis = Math.min(enter, leave);
+        g.el.style.opacity = vis;
+        g.el.style.transform = `translate3d(0,${(1 - enter) * 60 - (1 - leave) * 60}px,0)`;
         setTurn(g.f, g.b, calm ? 1 : clamp((local - .14) / .46));
+        // The word appears as the back comes round, and drifts against the garment.
+        g.w.style.opacity = vis * clamp((local - .2) / .3) * .34;
+        g.w.style.transform = `translate(calc(-50% + ${(.5 - local) * 9}vw),-50%)`;
       });
     };
-    let tick = false;
-    addEventListener('scroll', () => {
-      if (tick) return; tick = true;
-      requestAnimationFrame(() => { tick = false; paint(); });
-    }, { passive: true });
-    addEventListener('resize', paint);
+    scrubs.push(paint);
     paint();
     show(0);
   }
 
+  /* ---------- up close ---------- */
+  function closeUp() {
+    const items = [
+      ['pagoda', 'graphic-ripped-boxy-hoodie', 'Pagoda'],
+      ['redglobe', 'deep-red-logo-zip-hoodie', 'Quality garments'],
+      ['fury', 'fury-logo-straight-sweatpants', 'Flame star'],
+      ['starfish', 'starfish-fleece-faded-shorts', 'Starfish'],
+      ['hibiscus', 'hibiscus-ivory-hoodie', 'Hibiscus'],
+      ['japan', 'japan-jersey-sweatshirt', 'Mie Prefecture'],
+    ];
+    const box = $('[data-bento]');
+    box.innerHTML = items.map(([img, slug, label], i) => {
+      const p = bySlug(slug);
+      return `<li style="--d:${(i % 3) * 70}ms"><a class="macro" href="#/${slug}" data-cursor="View" aria-label="${label}, ${p.name}">
+        <img src="img/macro-${img}.webp" alt="Close-up of the ${label} print on the ${p.name}" loading="lazy">
+        <span class="macro-tag">${label}<small>${money(p.price)}</small></span>
+      </a></li>`;
+    }).join('');
+    if (calm) return;
+    const imgs = $$('img', box);
+    scrubs.push(() => {
+      const h = innerHeight;
+      for (const im of imgs) {
+        const r = im.parentNode.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > h) continue;
+        const k = (r.top + r.height / 2 - h / 2) / h;
+        im.style.transform = `translate3d(0,${(k * -6).toFixed(2)}%,0)`;
+      }
+    });
+  }
+
   /* ---------- shop grid ---------- */
+  // Four bands of five: one feature tile, back print first, with four smalls mixed by type.
+  const ORDER = [
+    ['dirty-faded-flare-zip-hoodie', 1], 'graphic-ripped-boxy-hoodie', 'fury-logo-straight-sweatpants', 'logo-wash-jorts', 'japan-jersey-sweatshirt',
+    'sunfaded-hoodie', 'earth-barrel-leg-sweatpants', ['hibiscus-ivory-hoodie', 1], 'starfish-fleece-faded-shorts', 'autumn-waffle-knit',
+    ['2018-wc-faded-hoodie', 1], 'blossom-baggy-zip-hoodie', 'signature-straight-sweatpants', 'fleeced-sweatshirt', 'vintage-wash-denim-shorts',
+    'logo-grey-washed-box-hoodie', 'waistband-barrel-sweatpants', ['deep-red-logo-zip-hoodie', 1], 'logo-compression-shirt', 'darks-barrel-fleece-sweatpants',
+  ];
   function shop() {
     const grid = $('[data-grid]'), chips = $('[data-chips]');
-    grid.innerHTML = P.map(p => {
-      const c = firstColour(p);
-      return `<li class="tile" data-cat="${p.cat}"><a href="#/${p.slug}">
+    grid.innerHTML = ORDER.map((o, i) => {
+      const big = Array.isArray(o), p = bySlug(big ? o[0] : o), c = firstColour(p);
+      const a = big ? 'back' : 'front', z = big ? 'front' : 'back';
+      return `<li class="tile${big ? ' big' : ''}" data-cat="${p.cat}" data-slug="${p.slug}" style="--d:${(i % 4) * 60}ms"><a href="#/${p.slug}" data-cursor="View" data-open-side="${big ? 1 : 0}">
         <div class="tile-img">
-          <img class="f" src="${src(p, 'front', c, true)}" width="640" height="800" alt="${p.name}" loading="lazy">
-          <img class="b" src="${src(p, 'back', c, true)}" width="640" height="800" alt="" loading="lazy">
+          <img class="f" src="${src(p, a, c, !big)}" width="720" height="900" alt="${p.name}" loading="lazy">
+          <img class="b" src="${src(p, z, c, !big)}" width="720" height="900" alt="" loading="lazy">
         </div>
         <div class="tile-meta"><span class="tile-name">${p.name}</span><span class="tile-price">${money(p.price)}</span></div>
       </a></li>`;
     }).join('');
+
     const cats = ['All', ...new Set(P.map(p => p.cat))];
-    chips.innerHTML = cats.map((c, i) => {
+    chips.innerHTML = '<i class="chip-ind"></i>' + cats.map((c, i) => {
       const n = c === 'All' ? P.length : P.filter(p => p.cat === c).length;
       return `<button type="button" data-c="${c}" aria-pressed="${i === 0}">${c}<sup>${n}</sup></button>`;
     }).join('');
+    const ind = $('.chip-ind', chips);
+    const place = () => {
+      const b = $('[aria-pressed=true]', chips);
+      ind.style.width = b.offsetWidth + 'px';
+      ind.style.transform = `translate(${b.offsetLeft}px,${b.offsetTop}px)`;
+    };
+    place();
+    addEventListener('resize', place);
+    document.fonts && document.fonts.ready.then(place);
+
     chips.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
       $$('button', chips).forEach(x => x.setAttribute('aria-pressed', x === b));
+      place();
       const c = b.dataset.c;
-      const apply = () => $$('.tile', grid).forEach(t => { t.hidden = c !== 'All' && t.dataset.cat !== c; });
-      if (document.startViewTransition && !calm) document.startViewTransition(apply); else apply();
+      const tiles = $$('.tile', grid);
+      const apply = () => {
+        grid.classList.toggle('filtered', c !== 'All');
+        tiles.forEach(t => {
+          t.hidden = c !== 'All' && t.dataset.cat !== c;
+          t.classList.add('in');
+        });
+      };
+      if (!canMorph) return apply();
+      // Each tile gets a name for the length of the transition, so the grid reflows instead of cutting.
+      tiles.forEach((t, i) => { t.style.viewTransitionName = 'tile-' + i; });
+      document.startViewTransition(apply).finished.finally(() => {
+        tiles.forEach(t => { t.style.viewTransitionName = ''; });
+      });
     });
   }
 
@@ -189,8 +275,10 @@
     const el = $('[data-sheet]'), stage = $('[data-sheet-stage]');
     const f = $('[data-sf]'), b = $('[data-sb]');
     const sideBtns = $$('[data-side]');
+    const segInd = $('[data-seg-ind]');
     const buy = $('[data-s-buy]');
     let cur = null, colour = '', size = null, unit = 'inch', t = 0, anim = 0, opener = null;
+    let pending = null;                      // the tile image that was just clicked, for the morph
 
     const setT = v => {
       t = clamp(v);
@@ -198,6 +286,7 @@
       stage.setAttribute('aria-valuenow', Math.round(t * 100));
       stage.setAttribute('aria-valuetext', t > .5 ? 'Back' : 'Front');
       sideBtns.forEach((x, i) => x.setAttribute('aria-pressed', (t > .5) === (i === 1)));
+      segInd.style.transform = `translateX(${t > .5 ? 100 : 0}%)`;
     };
     const tween = to => {
       cancelAnimationFrame(anim);
@@ -258,6 +347,7 @@
       const x = e.target.closest('button'); if (!x) return;
       size = size === x.dataset.z ? null : x.dataset.z;
       sizes(); table();
+      $(`[data-z="${x.dataset.z}"]`).focus({ preventScroll: true });
     });
     $$('[data-unit]').forEach(x => x.addEventListener('click', () => {
       unit = x.dataset.unit;
@@ -282,8 +372,9 @@
     };
     addEventListener('online', buyState); addEventListener('offline', buyState);
 
-    function open(p) {
-      if (el.hidden) opener = document.activeElement;
+    const nextOf = d => P[(P.indexOf(cur) + d + P.length) % P.length];
+
+    function fill(p, side) {
       cur = p; colour = firstColour(p); size = null;
       $('[data-s-cat]').textContent = p.cat;
       $('[data-s-name]').textContent = p.name;
@@ -298,37 +389,96 @@
       const rv = $('[data-s-review]');
       rv.hidden = !p.review;
       if (p.review) rv.innerHTML = `${p.review}<cite>5 stars on Etsy</cite>`;
+      const nx = nextOf(1);
+      $('[data-next-name]').textContent = nx.name;
+      $('[data-next-img]').src = src(nx, 'front', firstColour(nx), true);
       images(); sizes(); table(); buyState();
-      cancelAnimationFrame(anim); setT(0);
+      cancelAnimationFrame(anim); setT(side);
+      document.title = `${p.name} / True Offline`;
+    }
+    const reveal = () => {
       el.hidden = false;
       document.body.classList.add('locked');
       $('.sheet-info').scrollTop = 0; el.scrollTop = 0;
-      document.title = `${p.name} / True Offline`;
       $('[data-close]').focus({ preventScroll: true });
+    };
+    const decoded = img => Promise.race([img.decode().catch(() => {}), new Promise(r => setTimeout(r, 260))]);
+
+    function open(p) {
+      const side = pending ? pending.side : 0, from = pending && pending.img;
+      pending = null;
+      if (!el.hidden) {                       // moving between pieces
+        if (!canMorph) return fill(p, 0);
+        document.startViewTransition(() => { fill(p, 0); $('.sheet-info').scrollTop = 0; el.scrollTop = 0; });
+        return;
+      }
+      opener = document.activeElement;
+      fill(p, side);
+      const target = side ? b : f;
+      if (!canMorph || !from) return reveal();
+      from.style.viewTransitionName = 'garment';
+      document.startViewTransition(async () => {
+        from.style.viewTransitionName = '';
+        await decoded(target);
+        target.style.viewTransitionName = 'garment';
+        reveal();
+      }).finished.finally(() => { target.style.viewTransitionName = ''; });
     }
-    function close() {
-      if (el.hidden) return;
+
+    function hide() {
       el.hidden = true; cur = null;
       document.body.classList.remove('locked');
       document.title = 'True Offline';
       if (opener) opener.focus({ preventScroll: true });
     }
-    const go = d => {
-      const i = P.indexOf(cur);
-      location.hash = '/' + P[(i + d + P.length) % P.length].slug;
-    };
+    function close() {
+      if (el.hidden) return;
+      const slug = cur.slug;
+      const tile = $(`.tile[data-slug="${slug}"]`);
+      const r = tile && !tile.hidden && tile.getBoundingClientRect();
+      const inView = r && r.bottom > 0 && r.top < innerHeight;
+      if (!canMorph || !inView) return hide();
+      const big = tile.classList.contains('big');   // feature tiles lead with the back
+      const back = t > .5;
+      const shown = $(big === back ? '.f' : '.b', tile);
+      const live = back ? b : f;
+      live.style.viewTransitionName = 'garment';
+      document.startViewTransition(() => {
+        live.style.viewTransitionName = '';
+        // Show the same side the sheet was on, for the length of the morph.
+        const other = shown.matches('.f') ? $('.b', tile) : $('.f', tile);
+        if (shown.matches('.b')) { shown.style.opacity = 1; shown.style.transform = 'none'; other.style.opacity = 0; }
+        shown.style.viewTransitionName = 'garment';
+        hide();
+      }).finished.finally(() => {
+        shown.style.viewTransitionName = '';
+        shown.style.opacity = ''; shown.style.transform = '';
+        $$('img', tile).forEach(i => { i.style.opacity = ''; });
+      });
+    }
     const dismiss = () => {
       history.pushState('', '', location.pathname + location.search);
       close();
     };
+    const go = d => { location.hash = '/' + nextOf(d).slug; };
+
+    // Remember what was clicked so the garment can travel from the grid into the sheet.
+    document.addEventListener('click', e => {
+      const a = e.target.closest('[data-open-side]');
+      if (!a) return;
+      const side = +a.dataset.openSide;
+      const flipped = matchMedia('(hover:hover)').matches && a.matches(':hover');
+      pending = { side: flipped ? 1 - side : side, img: $(flipped ? '.b' : '.f', a) };
+    }, true);
+
     $('[data-close]').addEventListener('click', dismiss);
     $('[data-prev]').addEventListener('click', () => go(-1));
     $('[data-next]').addEventListener('click', () => go(1));
     addEventListener('keydown', e => {
       if (el.hidden) return;
       if (e.key === 'Escape') dismiss();
-      if (e.key === 'ArrowRight' && e.target.tagName !== 'INPUT') go(1);
-      if (e.key === 'ArrowLeft' && e.target.tagName !== 'INPUT') go(-1);
+      if (e.key === 'ArrowRight') go(1);
+      if (e.key === 'ArrowLeft') go(-1);
       if (e.key === 'Tab') {
         const items = $$('a[href],button,[tabindex="0"]', el).filter(x => x.offsetParent !== null && x.tabIndex >= 0);
         const a = items[0], z = items[items.length - 1];
@@ -338,7 +488,7 @@
     });
     const route = () => {
       const m = location.hash.match(/^#\/(.+)$/);
-      const p = m && P.find(x => x.slug === m[1]);
+      const p = m && bySlug(m[1]);
       if (p) open(p); else close();
     };
     addEventListener('hashchange', route);
@@ -349,18 +499,20 @@
   function offline() {
     const labels = $$('[data-net-label]');
     const title = $('[data-off-title]'), sub = $('[data-off-sub]'), line = $('[data-hero-line]');
-    const saved = $('[data-saved]');
-    const on = {
-      title: title.textContent, sub: sub.textContent, line: line.textContent,
-    };
+    const saved = $('[data-saved]'), sw = $('[data-switch]');
+    const on = { title: title.textContent, sub: sub.textContent, line: line.textContent };
+    let preview = false;
     const net = () => {
-      const up = navigator.onLine;
-      document.body.classList.toggle('is-offline', !up);
-      labels.forEach(l => { l.textContent = up ? 'Online' : 'Offline'; });
-      title.textContent = up ? on.title : 'There you go.';
-      sub.textContent = up ? on.sub : 'No signal, and the whole line is still here. Checkout will need you back online. No rush.';
-      line.textContent = up ? on.line : 'No signal. You are doing it right.';
+      const real = !navigator.onLine, off = real || preview;
+      document.body.classList.toggle('is-offline', off);
+      labels.forEach(l => { l.textContent = off ? 'Offline' : 'Online'; });
+      title.textContent = off ? 'There you go.' : on.title;
+      sub.textContent = off ? 'No signal, and the whole line is still here. Checkout will need you back online. No rush.' : on.sub;
+      line.textContent = off ? 'No signal. You are doing it right.' : on.line;
+      sw.setAttribute('aria-checked', off);
+      sw.disabled = real;
     };
+    sw.addEventListener('click', () => { preview = !preview; net(); });
     addEventListener('online', net); addEventListener('offline', net); net();
 
     const count = async () => {
@@ -377,9 +529,18 @@
       }).catch(() => { saved.textContent = 'Not available here'; });
       setTimeout(count, 2500);
     } else saved.textContent = 'Not available here';
+
+    if (calm) return;
+    const stack = $('.off-stack'), sec = $('#offline');
+    scrubs.push(() => {
+      const r = sec.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > innerHeight) return;
+      const k = (r.top + r.height / 2 - innerHeight / 2) / innerHeight;
+      stack.style.transform = `translate3d(${k * 60}px,${k * 40}px,0) rotate(${k * -3}deg)`;
+    });
   }
 
-  /* ---------- top bar tone ---------- */
+  /* ---------- top bar ---------- */
   function barTone() {
     const bar = $('.bar'), over = new Set();
     const io = new IntersectionObserver(es => {
@@ -398,11 +559,74 @@
     bar.addEventListener('focusin', () => bar.classList.remove('tuck'));
   }
 
+  /* ---------- reveals and scrubbed type ---------- */
+  function reveals() {
+    const io = new IntersectionObserver(es => {
+      es.forEach(e => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: .01 });
+    $$('.rv,.mask,.tile').forEach(e => io.observe(e));
+    // Bento tiles start fully clipped, and a fully clipped element never reports as intersecting,
+    // so these are checked by position instead.
+    const lis = $$('.bento li');
+    const sweep = () => {
+      const h = innerHeight * .94;
+      for (const li of lis) {
+        if (li.classList.contains('in')) continue;
+        if (li.getBoundingClientRect().top < h) li.classList.add('in');
+      }
+    };
+    scrubs.push(sweep);
+    sweep();
+
+    if (calm) return;
+    // Variable width: headline type stretches out to full width as it arrives.
+    const items = $$('[data-stretch]');
+    scrubs.push(() => {
+      const h = innerHeight;
+      const left = document.documentElement.scrollHeight - h - scrollY;
+      for (const e of items) {
+        const r = e.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > h) continue;
+        // The footer can never rise far up the screen, so it finishes on reaching the page end.
+        const k = e.dataset.stretch === 'end' ? clamp(1 - left / (h * .4)) : clamp((h - r.top) / (h * .42));
+        e.style.fontStretch = (62 + 63 * (1 - Math.pow(1 - k, 3))).toFixed(1) + '%';
+      }
+    });
+  }
+
+  /* ---------- cursor label ---------- */
+  function cursor() {
+    if (!fine || calm) return;
+    const c = $('[data-cur]');
+    let x = 0, y = 0, cx = 0, cy = 0, raf = 0;
+    const paint = () => {
+      cx += (x - cx) * .22; cy += (y - cy) * .22;
+      c.style.transform = `translate3d(${cx + 14}px,${cy + 14}px,0)`;
+      raf = Math.abs(x - cx) + Math.abs(y - cy) > .2 ? requestAnimationFrame(paint) : 0;
+    };
+    addEventListener('pointermove', e => {
+      x = e.clientX; y = e.clientY;
+      const t = e.target.closest && e.target.closest('[data-cursor]');
+      if (t) { if (!c.classList.contains('on')) { cx = x; cy = y; } c.textContent = t.dataset.cursor; }
+      c.classList.toggle('on', !!t);
+      if (!raf) raf = requestAnimationFrame(paint);
+    }, { passive: true });
+    document.addEventListener('pointerleave', () => c.classList.remove('on'));
+  }
+
   sky();
   barTone();
   heroMotion();
   turnSection();
+  closeUp();
   shop();
   sheet();
   offline();
+  reveals();
+  cursor();
+  runScrubs();
 })();
