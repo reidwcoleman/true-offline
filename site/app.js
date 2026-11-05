@@ -26,7 +26,7 @@
 
   /* Wheel and trackpad scrolling glide. Touch keeps the phone's own scrolling, which is already smooth. */
   let lenis = null;
-  if (!calm && fine && window.Lenis) {
+  const smooth = () => {
     lenis = new window.Lenis({ lerp: .115, wheelMultiplier: .95, prevent: n => !!n.closest('[data-sheet]') });
     const run = t => { lenis.raf(t); requestAnimationFrame(run); };
     requestAnimationFrame(run);
@@ -40,6 +40,12 @@
       e.preventDefault();
       lenis.scrollTo(el, { duration: 1.3 });
     });
+  };
+  if (!calm && fine) {                       // phones never download it
+    const js = document.createElement('script');
+    js.src = 'lenis.js?v=' + document.documentElement.dataset.v;
+    js.onload = smooth;
+    document.head.append(js);
   }
 
   /* A garment "turning": cross-dissolve the two views while the width dips, so it reads as a
@@ -670,7 +676,8 @@
     const row = (key, p) => {
       const r = $(`[data-row="${key}"]`);
       r.href = '#/' + p.slug;
-      $('img', r).src = src(p, 'front', firstColour(p), true);
+      const thumb = $('img', r), url = src(p, 'front', firstColour(p), true);
+      if (r.dataset.near) thumb.src = url; else thumb.dataset.src = url;
       $('.fit-name', r).textContent = p.name;
       $('.fit-price', r).textContent = money(p.price);
     };
@@ -696,7 +703,7 @@
     };
     for (const key of ['top', 'bottom']) {
       const el = $(`[data-reel="${key}"]`), items = groups[key];
-      el.innerHTML = items.map((p, i) => `<button type="button" class="reel-i" role="option" aria-selected="false" aria-label="${p.name}" data-i="${i}" tabindex="-1"><img src="${src(p, 'front', firstColour(p))}" width="720" height="900" alt="" decoding="async" draggable="false"></button>`).join('');
+      el.innerHTML = items.map((p, i) => `<button type="button" class="reel-i" role="option" aria-selected="false" aria-label="${p.name}" data-i="${i}" tabindex="-1"><img src="${src(p, 'front', firstColour(p), true)}" srcset="${src(p, 'front', firstColour(p), true)} 720w,${src(p, 'front', firstColour(p))} 1200w" sizes="(pointer:coarse) 60vw,30vw" width="720" height="900" alt="" loading="lazy" decoding="async" draggable="false"></button>`).join('');
       const cells = $$('.reel-i', el);
       cells.forEach(c => {
         const img = $('img', c);
@@ -792,7 +799,20 @@
     };
     start();
     addEventListener('load', start, { once: true });
-    addEventListener('resize', () => { reels.top.go(reels.top.at(), false); reels.bottom.go(reels.bottom.at(), false); });
+    // iOS fires resize as the address bar slides, so only a real width change re-centres the reels.
+    let wide = innerWidth;
+    addEventListener('resize', () => {
+      if (innerWidth === wide) return;
+      wide = innerWidth;
+      reels.top.go(reels.top.at(), false); reels.bottom.go(reels.bottom.at(), false);
+    });
+    // Nothing downloads until the section is close; then every piece loads so a shuffle never shows a gap.
+    new IntersectionObserver(([e], io) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      $$('#fit .reel-i img').forEach(i => { i.loading = 'eager'; });
+      $$('.fit-row').forEach(r => { r.dataset.near = 1; const t = $('img', r); if (t.dataset.src) t.src = t.dataset.src; });
+    }, { rootMargin: '900px 0px' }).observe($('#fit'));
     $('[data-fit-shuffle]').addEventListener('click', () => {
       const pickNew = r => { let i; do { i = Math.floor(Math.random() * r.size); } while (i === r.at()); return i; };
       reels.top.go(pickNew(reels.top));
@@ -860,7 +880,13 @@
   addEventListener('pointerdown', () => document.documentElement.classList.remove('kbd'));
 
   /* The 3D hero lives in hero.js. If WebGL or that file fails, the flat hero takes over. */
-  const flatHero = () => { sky(); heroMotion(); };
+  const flatHero = () => {
+    const img = $('[data-flat-src]');
+    img.src = img.dataset.flatSrc;
+    const poster = $('.gl-poster');
+    if (poster) poster.remove();
+    sky(); heroMotion();
+  };
   if (document.documentElement.classList.contains('gl')) {
     window.TO_heroFail = () => {
       window.TO_heroFail = null;

@@ -27,7 +27,11 @@ const rng = seed => () => { seed |= 0; seed = seed + 0x6d2b79f5 | 0; let t = Mat
 const STAR = [[135, 0], [137, 74], [332, 60], [147, 114], [150, 195], [87, 147], [17, 199], [57, 127], [0, 82], [90, 78]];
 const coarse = matchMedia('(pointer:coarse)').matches;
 const VER = document.documentElement.dataset.v || '1';
-const SMALL = coarse || Math.min(screen.width, screen.height) < 700 ? '-m' : '';
+// Phones and tablets get their own path: direct rendering, lighter assets, fewer of everything.
+const LITE = coarse;
+const SMALL = LITE ? '-m' : '';
+const safari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iP(hone|ad|od)/.test(navigator.userAgent);
+const breathe = () => new Promise(r => setTimeout(r));            // lets the page paint and respond between steps
 
 function fail(err) {
   console.warn('hero fallback', err);
@@ -89,7 +93,7 @@ function glyph(ch, cap) {
   const shapes = svg.paths.flatMap(p => SVGLoader.createShapes(p));
   const k = cap / 1.2;
   const g = new THREE.ExtrudeGeometry(shapes, {
-    depth: .15 * k / s, curveSegments: 14, bevelEnabled: true, bevelThickness: .04 * k / s, bevelSize: .03 * k / s, bevelSegments: 4,
+    depth: .15 * k / s, curveSegments: LITE ? 6 : 14, bevelEnabled: true, bevelThickness: .04 * k / s, bevelSize: .03 * k / s, bevelSegments: LITE ? 2 : 4,
   });
   g.scale(s, s, s);
   g.translate(-GL.glyphs[ch].adv * s / 2, 0, 0);
@@ -269,30 +273,39 @@ async function start() {
   const hero = document.querySelector('#hero'), turn = document.querySelector('#turn');
   const fadeEl = document.querySelector('[data-hero-fade]'), foot = document.querySelector('[data-hero-foot]');
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: LITE, powerPreference: 'high-performance' });
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
-  let dpr = Math.min(devicePixelRatio || 1, 2);
+  const TIERS = LITE ? [1.75, 1.4, 1.1] : [2, 1.25];              // stepped down only if frames run long
+  let tier = LITE && (navigator.deviceMemory || 4) < 4 ? 1 : 0;
+  let dpr = Math.min(devicePixelRatio || 1, TIERS[tier]);
   renderer.setPixelRatio(dpr);
   renderer.shadowMap.enabled = !coarse;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(INK);
-  scene.environment = studio(renderer);
   scene.fog = new THREE.Fog(INK, 20, 40);
   const camera = new THREE.PerspectiveCamera(30, 1, .1, 400);
 
-  // Decoded off the main thread, so loading the next piece never drops a frame.
-  const bitmaps = new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY' });
-  const load = (u, srgb) => new Promise((res, rej) => bitmaps.load(u, img => {
-    const t = new THREE.Texture(img);
-    t.flipY = false;
+  // Decoded off the main thread where that is safe, so loading a piece never drops a frame. Safari
+  // cannot be trusted to honour the flip option, so it takes the ordinary path.
+  const bitmaps = safari ? null : new THREE.ImageBitmapLoader().setOptions({ imageOrientation: 'flipY' });
+  const plain = new THREE.TextureLoader();
+  const finish3 = (t, srgb) => {
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    t.needsUpdate = true;
-    res(t);
-  }, undefined, rej));
+    t.anisotropy = Math.min(LITE ? 4 : 16, renderer.capabilities.getMaxAnisotropy());
+    return t;
+  };
+  const load = (u, srgb) => new Promise((res, rej) => {
+    if (!bitmaps) { plain.load(u, t => res(finish3(t, srgb)), undefined, rej); return; }
+    bitmaps.load(u, img => {
+      const t = new THREE.Texture(img);
+      t.flipY = false;
+      t.needsUpdate = true;
+      res(finish3(t, srgb));
+    }, undefined, rej);
+  });
 
   /* Each garment is one closed mesh with the two photos on it. Loaded once, then shared by the hero
      and the featured stops. */
@@ -324,9 +337,9 @@ async function start() {
     if (parts.has(name)) return parts.get(name);
     const b = `img/hero/${name}`;
     const job = Promise.all([
-      fetch(`${b}.bin?v=${VER}`).then(r => { if (!r.ok) throw new Error(b); return r.arrayBuffer(); }),
-      load(`${b}-front${SMALL}.webp?v=${VER}`, true), load(`${b}-front-n.webp?v=${VER}`),
-      load(`${b}-back${SMALL}.webp?v=${VER}`, true), load(`${b}-back-n.webp?v=${VER}`),
+      fetch(`${b}${SMALL}.bin?v=${VER}`).then(r => { if (!r.ok) throw new Error(b); return r.arrayBuffer(); }),
+      load(`${b}-front${SMALL}.webp?v=${VER}`, true), load(`${b}-front-n${SMALL}.webp?v=${VER}`),
+      load(`${b}-back${SMALL}.webp?v=${VER}`, true), load(`${b}-back-n${SMALL}.webp?v=${VER}`),
     ]).then(([buf, fc, fn, bc, bn]) => {
       const { body, cap, W } = garmentGeometry(buf, H, SIZE[name]);
       const mats = [cloth(fc, fn), cloth(bc, bn)];
@@ -350,10 +363,13 @@ async function start() {
     return g;
   }
 
+  // The first hoodie downloads while everything else below is being built.
+  const firstLoad = garment('blossom');
+  await breathe();
+  scene.environment = studio(renderer);
+  await breathe();
   const hoodie = new THREE.Group();              // holds whichever piece is on show
-  const firstPiece = await garment('blossom');
-  hoodie.add(firstPiece);
-  const W = firstPiece.userData.w;
+  const W = H * SIZE.blossom.w / SIZE.blossom.h;
   const rig = new THREE.Group();                 // everything that leans with the pointer
   rig.add(hoodie);
   scene.add(rig);
@@ -453,14 +469,17 @@ async function start() {
     g.add(inst);
     return g;
   }
-  const treeL = tree(11, 1, 4.9, 3);
-  const treeR = tree(29, -1, 4.2, 3);
+  await breathe();
+  const treeL = tree(11, 1, 4.9, LITE ? 2 : 3);
+  await breathe();
+  const treeR = tree(29, -1, 4.2, LITE ? 2 : 3);
+  await breathe();
   const trees = new THREE.Group();
   trees.add(treeL, treeR);
   scene.add(trees);
 
   /* falling petals */
-  const N = coarse ? 170 : 300;
+  const N = LITE ? 110 : 300;
   const petalGeo = new THREE.PlaneGeometry(.26, .3, 3, 3);
   {
     const P = petalGeo.attributes.position;
@@ -498,7 +517,7 @@ async function start() {
   halo.material.color.set(0xff9fbe);
   halo.material.opacity = .78;
   scene.add(nebula, nebula2, halo);
-  const far = starfield(1500, 70, 150, 1.1, .6);
+  const far = starfield(LITE ? 500 : 1500, 70, 150, 1.1, .6);
   const near = starfield(120, 18, 40, 1.7, .7);
   scene.add(far, near);
 
@@ -530,12 +549,16 @@ async function start() {
 
   /* The five pieces you can put on the hero. Spinning it round swaps the garment at the far side. */
   const PIECES = [['blossom', 0xff9fbe], ['pagoda', 0xff5f96], ['globe', 0xd8467e], ['rooster', 0xff6a2a], ['dreamer', 0xe9d3b0]];
+  const firstPiece = await firstLoad;
+  hoodie.add(firstPiece);
+  await breathe();
   const heroModels = new Map([['blossom', firstPiece]]);
   const heroTint = new THREE.Color(0xff9fbe);
   let swap = null, shownPiece = 0, wantPiece = 0;
   async function pick(i) {
     wantPiece = i;
     const [name, col] = PIECES[i];
+    wantStops();
     if (!heroModels.has(name)) heroModels.set(name, await garment(name));
     if (wantPiece !== i || i === shownPiece) return;
     heroTint.set(col);
@@ -572,21 +595,50 @@ async function start() {
   const liveLetters = () => (portrait ? heroLettersTall : heroLettersWide);
 
   /* post */
+  // Phones draw straight to the screen: the extra passes cost more than they show at that size,
+  // and the vignette comes free from CSS.
+  let composer = null, bloom = null, finish = null;
+  if (!LITE) {
   const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
-  const composer = new EffectComposer(renderer, target);
+  composer = new EffectComposer(renderer, target);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .15, .55, 1.3);
+  bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .15, .55, 1.3);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
-  const finish = new ShaderPass(Finish);
+  finish = new ShaderPass(Finish);
   composer.addPass(finish);
+  }
+  const draw = dt => (composer ? composer.render(dt) : renderer.render(scene, camera));
+
+  /* The other hoodies load on desktop straight away; on a phone, only once you start moving toward them. */
+  let stopsWanted = false;
+  function wantStops() {
+    if (stopsWanted) return;
+    stopsWanted = true;
+    loadStops().then(async () => {
+      // Hand the textures to the GPU one per frame now, so scrolling or picking never pays for it later.
+      for (const job of parts.values()) {
+        const { mats } = await job;
+        for (const m of mats) for (const t of [m.map, m.normalMap]) {
+          renderer.initTexture(t);
+          await new Promise(r => requestAnimationFrame(r));
+        }
+      }
+      document.documentElement.dataset.stops = 'ready';
+      if (calm) requestAnimationFrame(frame);
+    }).catch(err => console.warn('featured pieces', err));
+  }
 
   let fitD = 24, portrait = false, viewW = 20;
+  let sizedW = 0, sizedH = 0, sizedD = 0;
   const resize = () => {
     const w = wrap.clientWidth, h = wrap.clientHeight;
+    // iOS fires resize as the address bar slides; reallocating the canvas then would stutter.
+    if (w === sizedW && h === sizedH && dpr === sizedD) return;
+    sizedW = w; sizedH = h; sizedD = dpr;
+    renderer.setPixelRatio(dpr);
     renderer.setSize(w, h, false);
-    composer.setPixelRatio(dpr);
-    composer.setSize(w, h);
+    if (composer) { composer.setPixelRatio(dpr); composer.setSize(w, h); }
     camera.aspect = w / h;
     portrait = w / h < 1;
     const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
@@ -691,20 +743,23 @@ async function start() {
 
   const introing = document.documentElement.classList.contains('intro');
   const begin = Math.max(performance.now(), introing ? 1020 : 0);
-  let orbitAngle = 1, samples = 0, slow = 0, tuned = false, showTime = 0, inGalleryNow = false, sp = 0, sPos = 0;
+  // Phones open on the finished shot (the poster), so the live scene takes over with nothing to wait for.
+  const settled = calm || LITE;
+  let N_live = N, orbitAngle = 1, samples = 0, slow = 0, tuned = false, showTime = 0, inGalleryNow = false, sp = 0, sPos = 0;
   const tint = new THREE.Color(0xff9fbe), tmp = new THREE.Color();
 
   function frame(now) {
     if (!visible && !calm) return;
     const dt = Math.min(.05, (now - last) / 1000); last = now;
     const t = now / 1000;
-    const e = calm ? 1 : clamp((now - begin) / 2100);
+    const e = settled ? 1 : clamp((now - begin) / 2100);
     const inn = expoOut(e);
 
     const hr = hero.getBoundingClientRect(), tr = turn.getBoundingClientRect();
     const span = hr.height - innerHeight;
     // Scroll is eased here too, so a notched wheel or a jump still glides through the 3D.
     const rawP = calm || span <= 0 ? 0 : clamp(-hr.top / span);
+    if (rawP > .02) wantStops();
     const rawPos = clamp(-tr.top / (tr.height - innerHeight)) * STOPS.length;
     sp += (rawP - sp) * (calm ? 1 : damp(11, dt)); sPos += (rawPos - sPos) * (calm ? 1 : damp(11, dt));
     if (Math.abs(rawP - sp) < .0004) sp = rawP;
@@ -837,7 +892,7 @@ async function start() {
     const half = viewW * .72;
     if (pointerOn) aim(mx, my);
     const fade = Math.exp(-dt * 1.9), PUSH = 2.5;
-    for (let i = 0; i < N; i++) {
+    for (let i = 0; i < N_live; i++) {
       const q = P[i];
       if (!calm) {
         if (pointerOn) {
@@ -865,21 +920,29 @@ async function start() {
       petals.setMatrixAt(i, px0.matrix);
     }
     petals.instanceMatrix.needsUpdate = true;
-    petals.count = inGallery ? Math.round(N * .4) : N;
+    petals.count = inGallery ? Math.round(N_live * .4) : N_live;
 
     fadeEl.style.opacity = smooth(.74, .97, p) * (1 - smooth(.02, .14, pos));
     foot.style.opacity = 1 - smooth(.02, .16, p);
     foot.style.pointerEvents = p > .1 ? 'none' : '';
 
-    finish.uniforms.t.value = t % 10;
-    composer.render(dt);
+    if (finish) finish.uniforms.t.value = t % 10;
+    draw(dt);
 
     // keep it smooth on weak GPUs: one step down, once
-    if (!tuned && e >= 1) {
-      samples++; if (dt > .03) slow++;
-      if (samples === 90) {
-        tuned = true;
-        if (slow > 40) { dpr = Math.min(dpr, 1.25); key.castShadow = false; bloom.enabled = false; resize(); }
+    if (!tuned && e >= 1 && now - begin > 900) {
+      samples++; if (dt > .024) slow++;
+      if (samples === 60) {
+        if (slow > 24) {
+          tier++;
+          dpr = Math.min(devicePixelRatio || 1, TIERS[Math.min(tier, TIERS.length - 1)]);
+          key.castShadow = false;
+          if (bloom) bloom.enabled = false;
+          if (tier >= 2) { N_live = Math.round(N * .55); }
+          resize();
+        }
+        if (tier >= TIERS.length) tuned = true;
+        samples = slow = 0;
       }
     }
     if (!calm) requestAnimationFrame(frame);
@@ -910,24 +973,14 @@ async function start() {
   window.TO_hero = { pick, state: () => ({ piece: PIECES[shownPiece][0], flips, bursts }) };
 
   // Compile everything before showing it, so the first visible frame does not hitch.
-  renderer.compile(scene, camera);
-  composer.render(0);
+  await renderer.compileAsync(scene, camera);
+  await breathe();
+  draw(0);
   requestAnimationFrame(n => {
     last = n; frame(n);
     canvas.classList.add('on');
     document.documentElement.dataset.hero = 'ready';
-    loadStops().then(async () => {
-      // Hand the textures to the GPU one per frame now, so scrolling or picking never pays for it later.
-      for (const job of parts.values()) {
-        const { mats } = await job;
-        for (const m of mats) for (const t of [m.map, m.normalMap]) {
-          renderer.initTexture(t);
-          await new Promise(r => requestAnimationFrame(r));
-        }
-      }
-      document.documentElement.dataset.stops = 'ready';
-      if (calm) requestAnimationFrame(frame);
-    }).catch(err => console.warn('featured pieces', err));
+    if (!LITE) wantStops();
   });
   if (calm) {
     addEventListener('resize', () => requestAnimationFrame(frame));
@@ -935,4 +988,4 @@ async function start() {
   }
 }
 
-start().catch(fail);
+if (document.documentElement.classList.contains('gl')) start().catch(fail);

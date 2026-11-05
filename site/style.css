@@ -26,6 +26,7 @@ html.lenis{scroll-behavior:auto}
 body{font-family:Archivo,system-ui,sans-serif;font-size:16px;line-height:1.5;color:var(--white);background:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:clip}
 body.locked{overflow:hidden}
 img{display:block;max-width:100%;height:auto}
+a,button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 ul{list-style:none;padding:0}
 a{color:inherit}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
@@ -97,6 +98,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .gl-canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .5s linear;touch-action:pan-y;cursor:grab}
 .gl-canvas:active{cursor:grabbing}
 .gl .gl-canvas.on{opacity:1}
+.gl-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;max-width:none}
 .hero-fade{position:absolute;inset:0;background:var(--ink);opacity:0;pointer-events:none}
 .gl .hero{height:250svh;background:none;z-index:1;pointer-events:none}
 .gl .hero-pin{background:none;pointer-events:none}
@@ -351,7 +353,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
   .fit-side{display:contents}
   .fit-side h2{order:0}
   .fit-sub{order:1;margin-bottom:12px}
-  .fit-stage{--cell:min(52vw,36svh);order:2;margin-inline:calc(-1 * var(--gut));margin-bottom:28px}
+  .fit-stage{--cell:min(52vw,36svh);order:2;margin:calc(var(--cell) * -.2) calc(-1 * var(--gut)) 28px}
   .fit-card{order:3;width:100%;max-width:520px;justify-self:center}
   .facts dl{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
@@ -389,7 +391,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
   .picker-row{grid-column:1 / -1;grid-row:2;justify-content:space-between;margin:0 -7px}
   .picker-row button{font-size:13px;padding:0 7px}
   .picker-row button::after{left:7px;right:7px}
-  .fit-stage{--cell:min(68vw,33svh)}
+  .fit-stage{--cell:min(57vw,33svh)}
+  .reel{-webkit-mask-image:none;mask-image:none}
   .bar-up .line-bar{top:50px}
   .reel-go{display:none}
   .sheet{display:block;overflow-y:auto;overscroll-behavior:contain}
@@ -402,6 +405,21 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
   .facts dl{grid-template-columns:1fr}
   .foot-row{font-size:13px}
   .foot-wm{font-size:10vw}
+}
+
+/* touch screens: shorter journeys, no paint-heavy effects */
+@media (pointer:coarse){
+  .gl .hero{height:165svh}
+  .turn{height:calc(100svh * 4.4)}
+  .gl-wrap::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(90% 70% at 50% 46%,transparent 55%,rgba(0,0,0,.55))}
+  .tile-card{will-change:auto}
+  .tile-card img,.reel-i img,.sheet-stage img{filter:none}
+  .tile-card .f,.tile-card .b{will-change:opacity}
+  .js .tile .tile-card img{scale:1;transition:none}
+  .picker-row button{min-height:44px}
+  .hero-foot{bottom:calc(10px + env(safe-area-inset-bottom))}
+  .turn-pin{padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+  .foot{padding-bottom:env(safe-area-inset-bottom)}
 }
 
 @media (prefers-reduced-motion:reduce){

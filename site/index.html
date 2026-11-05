@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-v="20">
+<html lang="en" data-v="22">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -15,19 +15,33 @@
 <link rel="icon" href="img/star.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="preload" href="fonts/archivo-italic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=20">
+<link rel="preconnect" href="https://www.etsy.com">
+<link rel="stylesheet" href="style.css?v=22">
 <script>
 /* The intro plays once per visit. It is pure CSS, so a script failure can never leave it covering the page. */
 (function () {
   var d = document.documentElement;
   d.classList.add('js');
-  try { if (document.createElement('canvas').getContext('webgl2')) d.classList.add('gl'); } catch (e) {}
+  /* Skip the 3D on data saver, on very slow connections and on phones with little memory. */
+  var net = navigator.connection || {};
+  var light = net.saveData || /2g/.test(net.effectiveType || '') || (navigator.deviceMemory && navigator.deviceMemory < 2);
+  try { if (!light && document.createElement('canvas').getContext('webgl2')) d.classList.add('gl'); } catch (e) {}
+  var touch = matchMedia('(pointer:coarse)').matches;
+  /* Touch screens open on a still of the 3D scene. It paints at once and the live scene fades in over it. */
+  if (touch && d.classList.contains('gl')) {
+    d.classList.add('poster');
+    var tall = innerWidth < innerHeight;
+    d.dataset.poster = 'img/poster-' + (tall ? 'tall' : 'wide') + '.webp';
+    var l = document.createElement('link');
+    l.rel = 'preload'; l.as = 'image'; l.href = d.dataset.poster; l.setAttribute('fetchpriority', 'high');
+    document.head.appendChild(l);
+  }
   /* Earlier builds installed a service worker. Clear it out of anyone's browser that still has it. */
   if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function (r) { r.forEach(function (x) { x.unregister(); }); });
   if (window.caches) caches.keys().then(function (k) { k.forEach(function (n) { caches.delete(n); }); });
   var seen = false;
   try { seen = sessionStorage.getItem('to-intro') === '1'; sessionStorage.setItem('to-intro', '1'); } catch (e) {}
-  if (!seen && !location.hash && !matchMedia('(prefers-reduced-motion: reduce)').matches) d.classList.add('intro');
+  if (!seen && !touch && !location.hash && !matchMedia('(prefers-reduced-motion: reduce)').matches) d.classList.add('intro');
 })();
 </script>
 </head>
@@ -66,6 +80,7 @@
 
 <div class="stage">
 <div class="gl-wrap">
+  <script>if (document.documentElement.dataset.poster) document.write('<img class="gl-poster" alt="" fetchpriority="high" src="' + document.documentElement.dataset.poster + '">');</script>
   <canvas class="gl-canvas" data-gl data-cursor="Drag to spin" aria-hidden="true"></canvas>
   <div class="hero-fade" data-hero-fade aria-hidden="true"></div>
 </div>
@@ -78,7 +93,8 @@
       <span class="wm-b" aria-hidden="true">Offline</span>
     </h1>
     <div class="hero-piece">
-      <img src="img/blossom-baggy-zip-hoodie-back.webp" width="1200" height="1500" alt="Back of the Blossom Baggy Zip Hoodie, with cherry blossom, katakana and the Japanese flag" fetchpriority="high">
+      <img data-flat-src="img/blossom-baggy-zip-hoodie-back.webp" width="1200" height="1500" alt="Back of the Blossom Baggy Zip Hoodie, with cherry blossom, katakana and the Japanese flag">
+      <noscript><img src="img/blossom-baggy-zip-hoodie-back.webp" width="1200" height="1500" alt=""></noscript>
     </div>
     <div class="hero-foot" data-hero-foot>
       <p class="hero-line">Clothes for outside.</p>
@@ -233,9 +249,8 @@
 
 <div class="cur" aria-hidden="true" data-cur></div>
 
-<script src="lenis.js?v=20"></script>
-<script src="data.js?v=20"></script>
-<script src="app.js?v=20"></script>
-<script src="hero.js?v=20" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
+<script src="data.js?v=22"></script>
+<script src="app.js?v=22"></script>
+<script src="hero.js?v=22" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
 </body>
 </html>

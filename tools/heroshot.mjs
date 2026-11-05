@@ -15,7 +15,7 @@ async function open(name, vp, extra = {}) {
   p.on('pageerror', e => errs.push(name + ': ' + e.message));
   await p.goto(URL, { waitUntil: 'load' });
   await p.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 30000 });
-  await p.waitForFunction(() => document.documentElement.dataset.stops === 'ready', null, { timeout: 30000 });
+  if (!extra.hasTouch) await p.waitForFunction(() => document.documentElement.dataset.stops === 'ready', null, { timeout: 30000 });
   return { c, p };
 }
 async function tour(p, n) {
