@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>True Offline</title>
+<meta name="description" content="True Offline. Washed hoodies, sweats and shorts from Raleigh, NC. Stars, flames and cherry blossom. This site works with your wifi off.">
+<meta name="theme-color" content="#08080B">
+<meta property="og:title" content="True Offline">
+<meta property="og:description" content="Clothes for outside. Twenty pieces from Raleigh, NC.">
+<meta property="og:image" content="img/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="img/star.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<link rel="preload" href="fonts/archivo-italic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="img/logo-grey-washed-box-hoodie-back.webp" as="image" type="image/webp">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#shop">Skip to the shop</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="star" viewBox="0 0 332 199"><path d="M135 0 137 74 332 60 147 114 150 195 87 147 17 199 57 127 0 82 90 78Z"/></symbol>
+</svg>
+
+<header class="bar">
+  <a class="bar-mark" href="#top" aria-label="True Offline, back to top">
+    <svg class="star-i" aria-hidden="true"><use href="#star"/></svg>
+    <span>True Offline</span>
+  </a>
+  <nav class="bar-nav" aria-label="Main">
+    <a href="#shop">Shop</a>
+    <a href="#offline">Offline</a>
+  </nav>
+  <p class="bar-status" role="status"><i class="dot"></i><span data-net-label>Online</span></p>
+</header>
+
+<main id="top">
+
+<section class="hero" aria-label="True Offline">
+  <canvas class="sky" aria-hidden="true"></canvas>
+  <h1 class="wm" aria-label="True Offline">
+    <span class="wm-a" aria-hidden="true">True</span>
+    <span class="wm-b" aria-hidden="true">Offline</span>
+  </h1>
+  <div class="hero-piece">
+    <img src="img/logo-grey-washed-box-hoodie-back.webp" width="1200" height="1500" alt="Back of the Logo Grey Washed Box Hoodie, with the True Offline globe logo across the shoulders" fetchpriority="high">
+  </div>
+  <div class="hero-foot">
+    <p class="hero-line" data-hero-line>Clothes for outside.</p>
+    <a class="hero-cta" href="#shop">Shop all 20 <span aria-hidden="true">&darr;</span></a>
+  </div>
+</section>
+
+<section class="turn" id="turn" aria-label="Featured back prints">
+  <div class="turn-pin">
+    <div class="turn-head">
+      <h2>The back<br>is the point.</h2>
+      <p class="turn-count"><span data-turn-i>1</span> / <span data-turn-n>4</span></p>
+    </div>
+    <div class="turn-stage" data-turn-stage></div>
+    <div class="turn-copy" data-turn-copy aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="shop" id="shop" aria-labelledby="shop-h">
+  <div class="shop-head">
+    <h2 id="shop-h">The line</h2>
+    <div class="chips" role="group" aria-label="Filter by type" data-chips></div>
+  </div>
+  <ul class="grid" data-grid></ul>
+  <noscript><p class="shop-noscript">The shop needs JavaScript. Everything is also on <a href="https://www.etsy.com/shop/TrueOffline">Etsy</a>.</p></noscript>
+</section>
+
+<section class="off" id="offline" aria-labelledby="off-h">
+  <svg class="off-star" aria-hidden="true"><use href="#star"/></svg>
+  <div class="off-in">
+    <h2 id="off-h" data-off-title>Turn your wifi off.</h2>
+    <p class="off-sub" data-off-sub>Go on. This site saves itself to your device, so all twenty pieces stay right here with no signal. It seemed like the least we could do.</p>
+    <dl class="off-read">
+      <div><dt>Connection</dt><dd data-net-label>Online</dd></div>
+      <div><dt>Saved on this device</dt><dd data-saved>Checking</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="facts" aria-label="Shipping and returns">
+  <dl>
+    <div><dt>Shipping</dt><dd>Free on everything here.</dd></div>
+    <div><dt>Delivery</dt><dd>Ships from China. About two weeks to the US.</dd></div>
+    <div><dt>Returns</dt><dd>Returns and exchanges accepted.</dd></div>
+    <div><dt>Checkout</dt><dd>Secure through Etsy, with Purchase Protection.</dd></div>
+  </dl>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="foot-row">
+    <p>Raleigh, North Carolina</p>
+    <ul>
+      <li><a href="https://www.etsy.com/shop/TrueOffline" rel="noopener">Etsy</a></li>
+      <li><a href="https://www.instagram.com/trueoffline.clothing/" rel="noopener">Instagram</a></li>
+    </ul>
+  </div>
+  <p class="foot-wm" aria-hidden="true">True Offline</p>
+</footer>
+
+<div class="sheet" data-sheet role="dialog" aria-modal="true" aria-labelledby="sheet-name" hidden>
+  <div class="sheet-view">
+    <div class="sheet-stage" data-sheet-stage tabindex="0" role="slider" aria-label="Turn the garment. Use the left and right arrow keys." aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Front">
+      <img class="f" data-sf alt="" draggable="false">
+      <img class="b" data-sb alt="" draggable="false">
+    </div>
+    <div class="sheet-turn" role="group" aria-label="View">
+      <button type="button" data-side="0" aria-pressed="true">Front</button>
+      <button type="button" data-side="1" aria-pressed="false">Back</button>
+      <span class="sheet-hint">Drag to turn</span>
+    </div>
+  </div>
+  <div class="sheet-info">
+    <button class="sheet-x" type="button" data-close aria-label="Close">
+      <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 3l14 14M17 3 3 17" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+    </button>
+    <p class="sheet-cat" data-s-cat></p>
+    <h2 id="sheet-name" data-s-name></h2>
+    <p class="sheet-price" data-s-price></p>
+    <p class="sheet-note" data-s-note></p>
+
+    <div class="sheet-block" data-s-colours hidden>
+      <h3>Color</h3>
+      <div class="pills" data-s-colour-pills></div>
+    </div>
+
+    <div class="sheet-block">
+      <div class="sheet-block-h">
+        <h3>Size</h3>
+        <div class="unit" role="group" aria-label="Units">
+          <button type="button" data-unit="inch" aria-pressed="true">in</button>
+          <button type="button" data-unit="cm" aria-pressed="false">cm</button>
+        </div>
+      </div>
+      <div class="pills" data-s-sizes></div>
+      <table class="meas" data-s-table></table>
+      <p class="sheet-small">Measured laid flat.</p>
+    </div>
+
+    <a class="buy" data-s-buy href="#" rel="noopener" target="_blank"></a>
+    <p class="sheet-small" data-s-buy-note>You'll pick your size on Etsy. Free shipping, about two weeks to the US.</p>
+
+    <dl class="spec" data-s-spec></dl>
+    <blockquote class="sheet-review" data-s-review hidden></blockquote>
+
+    <div class="sheet-nav">
+      <button type="button" data-prev>Previous</button>
+      <button type="button" data-next>Next</button>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
