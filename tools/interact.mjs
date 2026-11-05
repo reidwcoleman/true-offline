@@ -58,22 +58,53 @@ ok('every product has a real listing url + price', data.every(d => /^https:\/\/w
 ok('every size table is complete', data.every(d => d.s >= 4 && d.r >= 3 && d.full));
 ok('every product appears once in the grid', await p.evaluate(() => new Set([...document.querySelectorAll('.tile')].map(t => t.dataset.slug)).size === 20 && !document.querySelector('.tile a[href="#/undefined"]')));
 
-// up close: a pinned gallery that moves sideways with the scroll
-const cl = await p.evaluate(() => { const s = document.querySelector('#closeup'); return { top: s.offsetTop, span: s.offsetHeight - innerHeight }; });
-await p.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), cl.top + 2); await p.waitForTimeout(500);
-const x0 = await p.evaluate(() => new DOMMatrix(getComputedStyle(document.querySelector('[data-close-track]')).transform).m41);
-await p.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), cl.top + cl.span - 2); await p.waitForTimeout(700);
-const end = await p.evaluate(async () => {
-  const cards = [...document.querySelectorAll('.cc')], im = cards.map(c => c.querySelector('img'));
-  await Promise.all(im.map(i => { i.loading = 'eager'; return i.decode().catch(() => {}); }));
-  const r = cards[cards.length - 1].getBoundingClientRect();
-  return { n: cards.length, loaded: im.filter(i => i.naturalWidth > 0).length, x: new DOMMatrix(getComputedStyle(document.querySelector('[data-close-track]')).transform).m41, lastIn: r.left >= 0 && r.right <= innerWidth + 2, count: document.querySelector('[data-close-n]').textContent, over: document.documentElement.scrollWidth - innerWidth };
+// removed on request: Up close and the rear ring text
+ok('Up close is gone', await p.evaluate(() => !document.querySelector('#closeup,[data-close-track],.cc') && !/up close/i.test(document.body.innerText)));
+ok('Raleigh is off the ring', !/RALEIGH/.test(await p.evaluate(() => fetch('hero.js').then(r => r.text()))));
+
+// every garment is one closed mesh: an edge is shared by two faces, or it is seam, or a listed open end
+const meshes = await p.evaluate(async () => {
+  const out = {};
+  for (const n of ['blossom', 'pagoda', 'globe', 'rooster', 'dreamer']) {
+    const buf = await fetch(`img/hero/${n}.bin`).then(r => r.arrayBuffer());
+    const [nV, nT, nE] = new Uint32Array(buf, 0, 4);
+    let o = 16;
+    const zf = new Int16Array(buf, o + nV * 4, nV), zb = new Int16Array(buf, o + nV * 6, nV);
+    o += nV * 12;
+    const tri = new Uint16Array(buf, o, nT * 3); o += nT * 6;
+    const oe = new Uint16Array(buf, o, nE * 2);
+    const key = (a, b) => (a < b ? a * 70000 + b : b * 70000 + a);
+    const cnt = new Map();
+    for (let t = 0; t < nT; t++) for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) { const k = key(tri[t * 3 + a], tri[t * 3 + b]); cnt.set(k, (cnt.get(k) || 0) + 1); }
+    const open = new Set(); for (let e = 0; e < nE; e++) open.add(key(oe[e * 2], oe[e * 2 + 1]));
+    let bad = 0, odd = 0;
+    for (const [k, c] of cnt) {
+      if (c > 2) odd++;
+      if (c !== 1) continue;
+      const a = Math.floor(k / 70000), b = k % 70000;
+      if (!(zf[a] === zb[a] && zf[b] === zb[b]) && !open.has(k)) bad++;
+    }
+    out[n] = { nV, nT, bad, odd };
+  }
+  return out;
 });
-ok('all 6 close-ups load', end.n === 6 && end.loaded === 6, JSON.stringify(end));
-ok('gallery moves sideways with the scroll', end.x < x0 - 400);
-ok('last close-up lands on screen', end.lastIn && end.count === '06');
-ok('no sideways page scroll from the gallery', end.over <= 0);
-await p.screenshot({ path: `${out}/i-bento.jpg`, quality: 82, type: 'jpeg' });
+for (const [n, m] of Object.entries(meshes)) ok(`${n} mesh is closed`, m.bad === 0 && m.odd === 0 && m.nV > 5000, JSON.stringify(m));
+
+// the hero reacts
+await p.evaluate(() => scrollTo({ top: 0, behavior: 'instant' })); await p.waitForTimeout(700);
+await p.click('[data-picker] button:nth-child(3)'); await p.waitForTimeout(1500);
+ok('picker puts the Globe on the hero', (await p.evaluate(() => window.TO_hero.state().piece)) === 'globe');
+ok('picker names the piece and links to it', await p.evaluate(() => { const a = document.querySelector('[data-picker-now]'); return /Deep Red/i.test(a.textContent) && a.getAttribute('href') === '#/deep-red-logo-zip-hoodie'; }));
+await p.screenshot({ path: `${out}/i-picker.jpg`, quality: 82, type: 'jpeg' });
+await p.click('[data-picker] button:nth-child(1)'); await p.waitForTimeout(1400);
+const vw = await p.evaluate(() => [innerWidth, innerHeight]);
+await p.mouse.click(vw[0] * .9, vw[1] * .2); await p.waitForTimeout(200);
+ok('a tap throws petals', (await p.evaluate(() => window.TO_hero.state().bursts)) === 1);
+await p.screenshot({ path: `${out}/i-burst.jpg`, quality: 82, type: 'jpeg' });
+const lp = await p.evaluate(() => window.TO_ringReach());
+await p.mouse.click(lp.left + 60, vw[1] * .62); await p.waitForTimeout(150);
+const st0 = await p.evaluate(() => window.TO_hero.state());
+ok('a tap on the wordmark flips a letter, or misses into petals', st0.flips + st0.bursts >= 2, JSON.stringify(st0));
 
 // filters
 await p.evaluate(() => document.querySelector('#shop').scrollIntoView({ behavior: 'instant' }));
@@ -90,12 +121,34 @@ for (const [c, n] of [['Hoodies', 8], ['Tops', 4], ['Sweats', 5], ['Shorts', 3]]
 }
 await p.click('[data-c="All"]'); await p.waitForTimeout(620);
 
+// sorting
+const prices = () => p.evaluate(() => [...document.querySelectorAll('.tile')].filter(t => !t.hidden).map(t => +t.dataset.price));
+await p.click('[data-sort="low"]'); await p.waitForTimeout(620);
+let ps = await prices();
+ok('sort low to high', ps.every((v, i) => !i || ps[i - 1] <= v));
+ok('tiles renumber after sorting', (await p.locator('.tile .tile-no').first().textContent()) === '01');
+await p.click('[data-sort="high"]'); await p.waitForTimeout(620);
+ps = await prices();
+ok('sort high to low', ps.every((v, i) => !i || ps[i - 1] >= v));
+await p.click('[data-sort="featured"]'); await p.waitForTimeout(620);
+ok('featured order comes back', await p.evaluate(() => document.querySelector('.tile').classList.contains('big') && !document.querySelector('.grid').classList.contains('filtered')));
+const sticky = await p.evaluate(async () => { scrollTo({ top: document.querySelector('.grid').getBoundingClientRect().top + scrollY + 900, behavior: 'instant' }); await new Promise(r => setTimeout(r, 400)); const r = document.querySelector('[data-line-bar]').getBoundingClientRect(); return r.top; });
+ok('filter bar stays with you', sticky >= 0 && sticky < 70, String(sticky));
+
 // hover shows the other side; the sheet then opens on that same side
 const li = p.locator('.tile:not(.big)').first();
 const slug = await li.getAttribute('data-slug');
 const tile = li.locator('a');
-await tile.scrollIntoViewIfNeeded(); await p.waitForTimeout(900); await tile.hover(); await p.waitForTimeout(600);
-ok('hover turns tile to back', await tile.locator('.b').evaluate(e => getComputedStyle(e).opacity === '1'));
+await tile.scrollIntoViewIfNeeded(); await p.waitForTimeout(900);
+const plate = li.locator('.tile-plate');
+await plate.hover({ position: { x: 20, y: 80 } }); await p.waitForTimeout(500);
+ok('left side of a tile shows the first side', await tile.locator('.f').evaluate(e => +getComputedStyle(e).opacity > .95));
+ok('tile tilts toward the pointer', await li.locator('.tile-card').evaluate(e => /rotateY\(-/.test(e.style.transform)), await li.locator('.tile-card').evaluate(e => e.style.transform));
+const pb = await plate.boundingBox();
+await plate.hover({ position: { x: pb.width - 20, y: 80 } }); await p.waitForTimeout(700);
+ok('moving across turns the tile to the back', await tile.locator('.b').evaluate(e => +getComputedStyle(e).opacity > .95));
+ok('sizes show on hover', await li.locator('.tile-sizes').evaluate(e => +getComputedStyle(e).opacity > .9));
+ok('other tiles step back', await p.locator('.tile:not(.big)').nth(1).evaluate(e => +getComputedStyle(e).opacity < .7));
 await p.screenshot({ path: `${out}/i-hover.jpg`, quality: 80, type: 'jpeg' });
 ok('cursor label shows View', await p.evaluate(() => { const c = document.querySelector('[data-cur]'); return c.classList.contains('on') && c.textContent === 'View'; }));
 
@@ -172,6 +225,48 @@ const missing = await p.evaluate(async () => {
   return r.filter(Boolean);
 });
 ok('all large images resolve', missing.length === 0, missing.join(' '));
+
+// build a fit
+await p.evaluate(() => { location.hash = ''; }); await p.waitForTimeout(700);
+await p.evaluate(() => document.querySelector('#fit').scrollIntoView({ behavior: 'instant' })); await p.waitForTimeout(1000);
+const bill = () => p.evaluate(() => {
+  const a = [...document.querySelectorAll('[data-fit-bill] a')].map(x => x.getAttribute('href').slice(2));
+  const pr = s => window.TO_PRODUCTS.find(x => x.slug === s).price;
+  const sum = document.querySelector('.fit-sum dd').textContent.trim();
+  return { a, sum, want: '$' + (pr(a[0]) + pr(a[1])).toFixed(2) };
+});
+const b0 = await bill();
+ok('fit starts on the blossom hoodie', b0.a[0] === 'blossom-baggy-zip-hoodie', JSON.stringify(b0));
+ok('fit total adds up', b0.sum === b0.want, JSON.stringify(b0));
+await p.click('[data-reel="top"] ~ [data-go="1"]'); await p.waitForTimeout(900);
+const b1 = await bill();
+ok('arrow moves the top reel', b1.a[0] !== b0.a[0] && b1.a[1] === b0.a[1], JSON.stringify(b1));
+ok('total follows the reel', b1.sum === b1.want, JSON.stringify(b1));
+await p.focus('[data-reel="bottom"]'); await p.keyboard.press('ArrowRight'); await p.waitForTimeout(900);
+ok('arrow keys move a reel', (await bill()).a[1] !== b1.a[1]);
+const rb = await p.locator('[data-reel="top"]').boundingBox();
+await p.mouse.move(rb.x + rb.width * .6, rb.y + rb.height / 2); await p.mouse.down();
+await p.mouse.move(rb.x + rb.width * .2, rb.y + rb.height / 2, { steps: 10 }); await p.mouse.up(); await p.waitForTimeout(1000);
+ok('a reel can be dragged', (await bill()).a[0] !== b1.a[0]);
+const b2 = await bill();
+await p.click('[data-fit-shuffle]'); await p.waitForTimeout(1300);
+const b3 = await bill();
+ok('shuffle changes the fit', b3.a[0] !== b2.a[0] && b3.a[1] !== b2.a[1] && b3.sum === b3.want, JSON.stringify(b3));
+ok('every piece on the reels is a top or a bottom', await p.evaluate(() => document.querySelectorAll('[data-reel="top"] .reel-i').length === 12 && document.querySelectorAll('[data-reel="bottom"] .reel-i').length === 8));
+await p.screenshot({ path: `${out}/i-fit.jpg`, quality: 82, type: 'jpeg' });
+await p.click('[data-fit-bill] a'); await p.waitForTimeout(700);
+ok('a fit piece opens its sheet', await p.isVisible('[data-sheet]'));
+await p.keyboard.press('Escape'); await p.waitForTimeout(700);
+
+// type that answers the pointer
+await p.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })); await p.waitForTimeout(900);
+const fw = await p.locator('.foot-wm').boundingBox();
+await p.mouse.move(fw.x + fw.width * .2, fw.y + fw.height / 2); await p.waitForTimeout(600);
+const wv = await p.evaluate(() => { const l = [...document.querySelectorAll('.foot-wm .wv')]; const w = n => +getComputedStyle(n).fontWeight; return { n: l.length, near: w(l[1]), far: w(l[l.length - 1]), over: document.documentElement.scrollWidth - innerWidth }; });
+ok('footer letters react to the pointer', wv.n === 11 && wv.near > wv.far + 200, JSON.stringify(wv));
+ok('reacting type never widens the page', wv.over <= 0);
+await p.screenshot({ path: `${out}/i-wave.jpg`, quality: 82, type: 'jpeg' });
+
 await ctx.close();
 
 // no WebGL, or the bundle fails: the flat hero takes over

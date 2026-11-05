@@ -180,117 +180,6 @@
     show(0);
   }
 
-  /* A few petals carried down from the first screen. Canvas 2D, and only while the section is on screen. */
-  function drift(c, sec) {
-    const g = c.getContext('2d');
-    const sprite = document.createElement('canvas');
-    sprite.width = sprite.height = 64;
-    const s = sprite.getContext('2d');
-    s.scale(.25, .25);
-    s.beginPath();
-    s.moveTo(128, 250); s.bezierCurveTo(30, 190, 8, 90, 62, 34); s.bezierCurveTo(84, 12, 112, 18, 128, 46);
-    s.bezierCurveTo(144, 18, 172, 12, 194, 34); s.bezierCurveTo(248, 90, 226, 190, 128, 250); s.closePath();
-    const gr = s.createRadialGradient(128, 250, 6, 128, 120, 200);
-    gr.addColorStop(0, '#d92d6b'); gr.addColorStop(.4, '#f98bb0'); gr.addColorStop(1, '#ffeaf1');
-    s.fillStyle = gr; s.fill();
-    let W, H, D;
-    const size = () => { D = Math.min(devicePixelRatio || 1, 2); W = c.clientWidth; H = c.clientHeight; c.width = W * D; c.height = H * D; };
-    size(); addEventListener('resize', size);
-    const ps = Array.from({ length: innerWidth < 760 ? 12 : 22 }, () => ({
-      x: Math.random(), y: Math.random(), z: .35 + Math.random() * .9, r: Math.random() * 6.28, v: (Math.random() - .5) * 1.6, ph: Math.random() * 6.28,
-    }));
-    let on = false, last = 0;
-    const tick = now => {
-      if (!on) return;
-      const dt = Math.min(.05, (now - last) / 1000); last = now;
-      g.setTransform(D, 0, 0, D, 0, 0);
-      g.clearRect(0, 0, W, H);
-      for (const p of ps) {
-        p.y += dt * .05 * p.z; p.x += dt * (.012 + Math.sin(now / 1400 + p.ph) * .018) * p.z; p.r += p.v * dt;
-        if (p.y > 1.06) { p.y = -.06; p.x = Math.random(); }
-        if (p.x > 1.06) p.x = -.06;
-        const sz = 19 * p.z, flip = Math.cos(now / 900 + p.ph);
-        g.save();
-        g.translate(p.x * W, p.y * H); g.rotate(p.r); g.scale(.45 + Math.abs(flip) * .55, 1);
-        g.globalAlpha = .4 + p.z * .42;
-        g.drawImage(sprite, -sz / 2, -sz / 2, sz, sz);
-        g.restore();
-      }
-      requestAnimationFrame(tick);
-    };
-    new IntersectionObserver(([e]) => {
-      const was = on; on = e.isIntersecting;
-      if (on && !was) { last = performance.now(); requestAnimationFrame(tick); }
-    }).observe(sec);
-  }
-
-  /* ---------- up close ---------- */
-  function closeUp() {
-    const items = [
-      ['pagoda', 'graphic-ripped-boxy-hoodie', 'Pagoda', '#D6246E', 1.02],
-      ['blossom', 'blossom-baggy-zip-hoodie', 'Blossom', '#E86A9A', 1.2],
-      ['redglobe', 'deep-red-logo-zip-hoodie', 'Globe', '#B23A63', 1.49],
-      ['fury', 'fury-logo-straight-sweatpants', 'Flame star', '#0A35F0', .86],
-      ['hibiscus', 'hibiscus-ivory-hoodie', 'Hibiscus', '#E23A36', 1.41],
-      ['japan', 'japan-jersey-sweatshirt', 'Mie', '#A9707A', 1.31],
-    ];
-    const sec = $('#closeup'), track = $('[data-close-track]'), words = $('[data-close-words]');
-    const glowEl = $('[data-close-glow]'), bar = $('[data-close-bar]'), nEl = $('[data-close-n]');
-    $('[data-close-total]').textContent = String(items.length).padStart(2, '0');
-    track.insertAdjacentHTML('beforeend', items.map(([img, slug, label, , ar], i) => {
-      const p = bySlug(slug);
-      return `<a class="cc" href="#/${slug}" data-cursor="View" style="--ar:${ar}">
-        <span class="cc-frame"><img src="img/macro-${img}.webp" alt="Close-up of the ${label} print on the ${p.name}" loading="lazy"><i class="cc-shade"></i></span>
-        <span class="cc-cap"><span class="cc-n">${String(i + 1).padStart(2, '0')}</span><span class="cc-label">${label}</span><span class="cc-price">${money(p.price)}</span><span class="cc-piece">${p.name}</span></span>
-      </a>`;
-    }).join(''));
-    words.innerHTML = items.map(([, , label, tint]) => `<span style="color:${tint}">${label}</span>`).join('');
-    const cards = $$('.cc', track).map(el => ({ el, img: $('img', el), shade: $('.cc-shade', el) }));
-    const wordEls = $$('span', words);
-    if (calm) return;
-
-    let travel = 0, lastX = 0, vel = 0, shown = -1;
-    const layout = () => {
-      travel = Math.max(0, track.scrollWidth - innerWidth);
-      sec.style.height = `${travel * 1.05 + innerHeight}px`;
-      cards.forEach(c => { c.x = c.el.offsetLeft; c.w = c.el.offsetWidth; });
-    };
-    const paint = () => {
-      const r = sec.getBoundingClientRect();
-      if (r.bottom < -40 || r.top > innerHeight + 40) return;
-      const p = clamp(-r.top / (r.height - innerHeight));
-      const x = -p * travel;
-      vel += ((x - lastX) - vel) * .25; lastX = x;
-      track.style.transform = `translate3d(${x}px,0,0)`;
-      bar.style.transform = `scaleX(${p})`;
-      let best = 0, bestF = -1;
-      cards.forEach((c, i) => {
-        const d = (c.x + c.w / 2 + x - innerWidth / 2) / innerWidth;
-        const f = 1 - clamp(Math.abs(d) * 1.35);
-        if (f > bestF) { bestF = f; best = i; }
-        // cards swing like pages round the middle of the screen
-        c.el.style.transform = `translate3d(0,${(1 - f) * 10}px,${(f - 1) * 150}px) rotateY(${clamp(d * -26, -30, 30)}deg)`;
-        c.shade.style.opacity = (1 - f) * (1 - f) * .55;
-        c.img.style.transform = `translate3d(${(d * -7).toFixed(2)}%,0,0)`;
-        const w = wordEls[i];
-        w.style.opacity = (f * f * .24).toFixed(3);
-        w.style.transform = `translate(calc(-50% + ${(d * 42).toFixed(2)}vw),-50%)`;
-      });
-      if (best !== shown) {
-        shown = best;
-        nEl.textContent = String(best + 1).padStart(2, '0');
-        glowEl.style.setProperty('--tint', items[best][3]);
-      }
-    };
-    drift($('[data-close-petals]'), sec);
-    layout();
-    addEventListener('resize', () => { layout(); paint(); });
-    addEventListener('load', () => { layout(); paint(); });
-    document.fonts && document.fonts.ready.then(() => { layout(); paint(); });
-    scrubs.push(paint);
-    paint();
-  }
-
   /* ---------- shop grid ---------- */
   // Four bands of five: one feature tile, back print first, with four smalls mixed by type.
   const ORDER = [
@@ -300,16 +189,23 @@
     'logo-grey-washed-box-hoodie', 'waistband-barrel-sweatpants', ['deep-red-logo-zip-hoodie', 1], 'logo-compression-shirt', 'darks-barrel-fleece-sweatpants',
   ];
   function shop() {
-    const grid = $('[data-grid]'), chips = $('[data-chips]');
+    const grid = $('[data-grid]'), chips = $('[data-chips]'), sorts = $('[data-sorts]'), count = $('[data-count]');
     grid.innerHTML = ORDER.map((o, i) => {
       const big = Array.isArray(o), p = bySlug(big ? o[0] : o), c = firstColour(p);
       const a = big ? 'back' : 'front', z = big ? 'front' : 'back';
-      return `<li class="tile${big ? ' big' : ''}" data-cat="${p.cat}" data-slug="${p.slug}" style="--d:${(i % 4) * 60}ms"><a href="#/${p.slug}" data-cursor="View" data-open-side="${big ? 1 : 0}">
-        <div class="tile-img">
-          <img class="f" src="${src(p, a, c, !big)}" width="720" height="900" alt="${p.name}" loading="lazy">
-          <img class="b" src="${src(p, z, c, !big)}" width="720" height="900" alt="" loading="lazy">
+      const extra = p.colours ? ` <span class="tile-more">${p.colours.length} colors</span>` : '';
+      return `<li class="tile${big ? ' big' : ''}" data-cat="${p.cat}" data-slug="${p.slug}" data-price="${p.price}" data-i="${i}" style="--d:${(i % 4) * 60}ms"><a href="#/${p.slug}" data-cursor="View" data-open-side="${big ? 1 : 0}">
+        <div class="tile-plate">
+          <div class="tile-card">
+            <img class="f" src="${src(p, a, c, !big)}" width="720" height="900" alt="${p.name}" loading="lazy" draggable="false">
+            <img class="b" src="${src(p, z, c, !big)}" width="720" height="900" alt="" loading="lazy" draggable="false">
+            <i class="tile-glare"></i>
+          </div>
+          <span class="tile-no"></span>
+          <span class="tile-side" data-a="${big ? 'Back' : 'Front'}" data-z="${big ? 'Front' : 'Back'}">${big ? 'Back' : 'Front'}</span>
+          <span class="tile-sizes" aria-hidden="true">${p.sizes.map(s => `<b>${s}</b>`).join('')}</span>
         </div>
-        <div class="tile-meta"><span class="tile-name">${p.name}</span><span class="tile-price">${money(p.price)}</span></div>
+        <div class="tile-meta"><span class="tile-name">${p.name}</span><span class="tile-price">${money(p.price)}</span><span class="tile-cat">${p.cat}${extra}</span></div>
       </a></li>`;
     }).join('');
 
@@ -328,25 +224,147 @@
     addEventListener('resize', place);
     document.fonts && document.fonts.ready.then(place);
 
-    chips.addEventListener('click', e => {
-      const b = e.target.closest('button'); if (!b) return;
-      $$('button', chips).forEach(x => x.setAttribute('aria-pressed', x === b));
-      place();
-      const c = b.dataset.c;
-      const tiles = $$('.tile', grid);
-      const apply = () => {
-        grid.classList.toggle('filtered', c !== 'All');
-        tiles.forEach(t => {
-          t.hidden = c !== 'All' && t.dataset.cat !== c;
-          t.classList.add('in');
-        });
-      };
+    let cat = 'All', sort = 'featured';
+    const tiles = $$('.tile', grid);
+    const number = () => {
+      let n = 0;
+      $$('.tile', grid).forEach(t => { if (!t.hidden) $('.tile-no', t).textContent = String(++n).padStart(2, '0'); });
+      count.textContent = `${n} ${n === 1 ? 'piece' : 'pieces'}`;
+    };
+    const apply = () => {
+      grid.classList.toggle('filtered', cat !== 'All' || sort !== 'featured');
+      const key = sort === 'featured' ? t => +t.dataset.i : sort === 'low' ? t => +t.dataset.price : t => -t.dataset.price;
+      [...tiles].sort((a, b) => key(a) - key(b)).forEach(t => grid.append(t));
+      tiles.forEach(t => {
+        t.hidden = cat !== 'All' && t.dataset.cat !== cat;
+        t.classList.add('in');
+      });
+      number();
+    };
+    const change = () => {
       if (!canMorph) return apply();
       // Each tile gets a name for the length of the transition, so the grid reflows instead of cutting.
       tiles.forEach((t, i) => { t.style.viewTransitionName = 'tile-' + i; });
       document.startViewTransition(apply).finished.finally(() => {
         tiles.forEach(t => { t.style.viewTransitionName = ''; });
       });
+    };
+    chips.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      $$('button', chips).forEach(x => x.setAttribute('aria-pressed', x === b));
+      place();
+      cat = b.dataset.c;
+      change();
+    });
+    sorts.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      $$('button', sorts).forEach(x => x.setAttribute('aria-pressed', x === b));
+      sort = b.dataset.sort;
+      change();
+    });
+    number();
+    if (!fine) $('.line-sub').textContent = 'Twenty pieces, washed, printed and faded. Each one turns over as you scroll past.';
+    tileMotion(grid, tiles);
+  }
+
+  /* The colour a print is mostly made of, from a tiny copy of the image. */
+  const tints = new Map();
+  function tintOf(img) {
+    if (tints.has(img.src)) return tints.get(img.src);
+    let out = '#8a8a96';
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 24;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      g.drawImage(img, 0, 0, 24, 24);
+      const d = g.getImageData(0, 0, 24, 24).data;
+      let r = 0, gg = 0, b = 0, w = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 200) continue;
+        const sat = Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]);
+        const k = sat * sat + 1;
+        r += d[i] * k; gg += d[i + 1] * k; b += d[i + 2] * k; w += k;
+      }
+      if (w) out = `rgb(${Math.round(r / w)},${Math.round(gg / w)},${Math.round(b / w)})`;
+    } catch (e) { /* the plain grey is fine */ }
+    tints.set(img.src, out);
+    return out;
+  }
+
+  /* Tiles follow the pointer: the card tilts and catches light, and moving across it turns the garment
+     from one side to the other. On touch screens each piece turns over as you scroll past it. */
+  function tileMotion(grid, tiles) {
+    if (calm) return;
+    if (!fine) {
+      const items = tiles.map(t => ({ t, f: $('.f', t), b: $('.b', t), a: $('a', t), side: $('.tile-side', t), was: -1 }));
+      scrubs.push(() => {
+        const h = innerHeight;
+        for (const it of items) {
+          if (it.t.hidden) continue;
+          const r = it.t.getBoundingClientRect();
+          if (r.bottom < 0 || r.top > h) continue;
+          const v = clamp((.6 - (r.top + r.height / 2) / h) / .2);
+          if (Math.abs(v - it.was) < .004) continue;
+          it.was = v;
+          setTurn(it.f, it.b, v);
+          it.a.dataset.flip = v > .5 ? 1 : 0;
+          it.side.textContent = v > .5 ? it.side.dataset.z : it.side.dataset.a;
+        }
+      });
+      return;
+    }
+    const live = new Set(), state = new WeakMap();
+    let raf = 0;
+    const get = a => {
+      let s = state.get(a);
+      if (!s) {
+        s = { a, plate: $('.tile-plate', a), card: $('.tile-card', a), f: $('.f', a), b: $('.b', a), glare: $('.tile-glare', a), side: $('.tile-side', a), t: 0, tt: 0, rx: 0, ry: 0, trx: 0, try: 0, gx: 50, gy: 40, on: 0, ton: 0, shown: 0 };
+        state.set(a, s);
+      }
+      return s;
+    };
+    const paint = () => {
+      raf = 0;
+      for (const s of live) {
+        const e = .16;
+        s.t += (s.tt - s.t) * e; s.rx += (s.trx - s.rx) * e; s.ry += (s.try - s.ry) * e; s.on += (s.ton - s.on) * e;
+        s.card.style.transform = `perspective(1100px) rotateX(${s.rx.toFixed(2)}deg) rotateY(${s.ry.toFixed(2)}deg) scale(${(1 + s.on * .018).toFixed(4)})`;
+        s.glare.style.opacity = (s.on * .9).toFixed(3);
+        s.glare.style.background = `radial-gradient(420px circle at ${s.gx.toFixed(1)}% ${s.gy.toFixed(1)}%,rgba(255,255,255,.3),rgba(255,255,255,0) 62%)`;
+        setTurn(s.f, s.b, s.t);
+        const back = s.t > .5 ? 1 : 0;
+        if (back !== s.shown) {
+          s.shown = back;
+          s.a.dataset.flip = back;
+          s.side.textContent = back ? s.side.dataset.z : s.side.dataset.a;
+        }
+        if (!s.ton && s.on < .004 && s.t < .004) {
+          live.delete(s);
+          s.card.style.transform = s.f.style.transform = s.b.style.transform = s.f.style.opacity = s.b.style.opacity = s.glare.style.opacity = '';
+        }
+      }
+      if (live.size) raf = requestAnimationFrame(paint);
+    };
+    const kick = s => { live.add(s); if (!raf) raf = requestAnimationFrame(paint); };
+    grid.addEventListener('pointermove', e => {
+      if (e.pointerType === 'touch') return;
+      const a = e.target.closest('.tile a'); if (!a) return;
+      const plate = e.target.closest('.tile-plate');
+      const s = get(a);
+      if (!plate) { s.ton = 0; s.tt = 0; s.trx = s.try = 0; kick(s); return; }
+      const r = plate.getBoundingClientRect();
+      const x = clamp((e.clientX - r.left) / r.width), y = clamp((e.clientY - r.top) / r.height);
+      s.ton = 1;
+      s.tt = clamp((x - .34) / .32);                // left third one side, right third the other
+      s.try = (x - .5) * 11; s.trx = (.5 - y) * 8;
+      s.gx = x * 100; s.gy = y * 100;
+      if (!a.style.getPropertyValue('--tint')) a.style.setProperty('--tint', tintOf(s.b.complete && s.b.naturalWidth ? s.b : s.f));
+      kick(s);
+    }, { passive: true });
+    grid.addEventListener('pointerout', e => {
+      const a = e.target.closest('.tile a'); if (!a || a.contains(e.relatedTarget)) return;
+      const s = get(a);
+      s.ton = 0; s.tt = 0; s.trx = s.try = 0;
+      kick(s);
     });
   }
 
@@ -537,7 +555,7 @@
       const a = e.target.closest('[data-open-side]');
       if (!a) return;
       const side = +a.dataset.openSide;
-      const flipped = matchMedia('(hover:hover)').matches && a.matches(':hover');
+      const flipped = a.dataset.flip === '1';
       pending = { side: flipped ? 1 - side : side, img: $(flipped ? '.b' : '.f', a) };
     }, true);
 
@@ -578,7 +596,9 @@
     addEventListener('scroll', () => {
       const n = scrollY;
       if (Math.abs(n - y) < 6) return;
-      bar.classList.toggle('tuck', n > y && n > innerHeight * .5);
+      const tuck = n > y && n > innerHeight * .5;
+      bar.classList.toggle('tuck', tuck);
+      document.documentElement.classList.toggle('bar-up', !tuck);
       y = n;
     }, { passive: true });
     bar.addEventListener('focusin', () => bar.classList.remove('tuck'));
@@ -630,6 +650,177 @@
     document.addEventListener('pointerleave', () => c.classList.remove('on'));
   }
 
+  /* ---------- pick the piece on the first screen ---------- */
+  function picker() {
+    const row = $('[data-picker]'), now = $('[data-picker-now]');
+    const list = [
+      ['Blossom', 'blossom-baggy-zip-hoodie'], ['Pagoda', 'graphic-ripped-boxy-hoodie'], ['Globe', 'deep-red-logo-zip-hoodie'],
+      ['Rooster', '2018-wc-faded-hoodie'], ['Dreamer', 'dirty-faded-flare-zip-hoodie'],
+    ];
+    row.innerHTML = list.map(([n], i) => `<button type="button" aria-pressed="${i === 0}" data-i="${i}">${n}</button>`).join('');
+    const show = i => {
+      const p = bySlug(list[i][1]);
+      now.href = '#/' + p.slug;
+      now.innerHTML = `<span>${p.name}</span><span>${money(p.price)}</span>`;
+    };
+    show(0);
+    row.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      $$('button', row).forEach(x => x.setAttribute('aria-pressed', x === b));
+      show(+b.dataset.i);
+      if (window.TO_hero) window.TO_hero.pick(+b.dataset.i);
+    });
+  }
+
+  /* ---------- build a fit ---------- */
+  function fit() {
+    const groups = {
+      top: P.filter(p => p.cat === 'Hoodies' || p.cat === 'Tops'),
+      bottom: P.filter(p => p.cat === 'Sweats' || p.cat === 'Shorts'),
+    };
+    const bill = $('[data-fit-bill]');
+    const reels = {};
+    const render = () => {
+      const t = reels.top.now(), b = reels.bottom.now();
+      bill.innerHTML = `<div><dt>Top</dt><dd><a class="ul" href="#/${t.slug}">${t.name}</a><span>${money(t.price)}</span></dd></div>
+        <div><dt>Bottom</dt><dd><a class="ul" href="#/${b.slug}">${b.name}</a><span>${money(b.price)}</span></dd></div>
+        <div class="fit-sum"><dt>Both</dt><dd><span></span><span>${money(t.price + b.price)}</span></dd></div>`;
+    };
+    for (const key of ['top', 'bottom']) {
+      const el = $(`[data-reel="${key}"]`), items = groups[key];
+      el.innerHTML = items.map((p, i) => `<button type="button" class="reel-i" role="option" aria-selected="false" aria-label="${p.name}" data-i="${i}" tabindex="-1"><img src="${src(p, 'front', firstColour(p))}" width="720" height="900" alt="" loading="lazy" draggable="false"></button>`).join('');
+      const cells = $$('.reel-i', el);
+      let at = -1, down = null, moved = false;
+      const centre = i => cells[i].offsetLeft + cells[i].offsetWidth / 2 - el.clientWidth / 2;
+      const go = (i, smooth = !calm) => el.scrollTo({ left: centre(i), behavior: smooth ? 'smooth' : 'auto' });
+      const paint = () => {
+        const mid = el.scrollLeft + el.clientWidth / 2;
+        let best = 0, bd = 1e9;
+        cells.forEach((c, i) => {
+          const d = (c.offsetLeft + c.offsetWidth / 2 - mid) / c.offsetWidth;
+          if (Math.abs(d) < bd) { bd = Math.abs(d); best = i; }
+          if (Math.abs(d) > 3) return;
+          const k = clamp(Math.abs(d));
+          c.style.setProperty('--k', k.toFixed(3));
+          c.style.setProperty('--d', clamp(d, -1, 1).toFixed(3));
+        });
+        if (best !== at) {
+          at = best;
+          cells.forEach((c, i) => c.setAttribute('aria-selected', i === at));
+          if (reels.top && reels.bottom) render();
+        }
+      };
+      let tick = false;
+      el.addEventListener('scroll', () => {
+        if (tick) return;
+        tick = true;
+        requestAnimationFrame(() => { tick = false; paint(); });
+      }, { passive: true });
+      // a mouse can grab the reel too; touch uses native scrolling
+      el.addEventListener('pointerdown', e => {
+        if (e.pointerType === 'touch') return;
+        down = { x: e.clientX, left: el.scrollLeft, t: performance.now() }; moved = false;
+      });
+      addEventListener('pointermove', e => {
+        if (!down) return;
+        const dx = e.clientX - down.x;
+        if (Math.abs(dx) > 5 && !moved) { moved = true; el.classList.add('dragging'); }
+        if (moved) el.scrollLeft = down.left - dx;
+      }, { passive: true });
+      addEventListener('pointerup', () => {
+        if (!down) return;
+        down = null;
+        if (moved) { el.classList.remove('dragging'); go(at); }
+      });
+      el.addEventListener('click', e => {
+        const c = e.target.closest('.reel-i'); if (!c || moved) return;
+        go(+c.dataset.i);
+      });
+      el.addEventListener('keydown', e => {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          e.preventDefault(); e.stopPropagation();
+          go((at + (e.key === 'ArrowRight' ? 1 : items.length - 1)) % items.length);
+        }
+      });
+      el.parentNode.addEventListener('click', e => {
+        const b = e.target.closest('[data-go]'); if (!b) return;
+        go((at + +b.dataset.go + items.length) % items.length);
+      });
+      reels[key] = {
+        now: () => items[Math.max(at, 0)], go, paint, size: items.length, at: () => at,
+      };
+    }
+    const start = () => {
+      reels.top.go(groups.top.findIndex(p => p.slug === 'blossom-baggy-zip-hoodie'), false);
+      reels.bottom.go(groups.bottom.findIndex(p => p.slug === 'darks-barrel-fleece-sweatpants'), false);
+      reels.top.paint(); reels.bottom.paint(); render();
+    };
+    start();
+    addEventListener('load', start, { once: true });
+    addEventListener('resize', () => { reels.top.go(reels.top.at(), false); reels.bottom.go(reels.bottom.at(), false); });
+    $('[data-fit-shuffle]').addEventListener('click', () => {
+      const pickNew = r => { let i; do { i = Math.floor(Math.random() * r.size); } while (i === r.at()); return i; };
+      reels.top.go(pickNew(reels.top));
+      setTimeout(() => reels.bottom.go(pickNew(reels.bottom)), calm ? 0 : 130);
+    });
+  }
+
+  /* ---------- type that answers the pointer ---------- */
+  /* Letters near the pointer stay wide and heavy, the rest narrow and lighten, like a wave through the word. */
+  function wave(el) {
+    const text = el.textContent;
+    if (!el.hasAttribute('aria-hidden')) el.setAttribute('aria-label', text);
+    el.innerHTML = [...text].map(c => (c === ' ' ? '<span class="wv-sp"> </span>' : `<i class="wv" aria-hidden="true">${c}</i>`)).join('');
+    if (!fine || calm) return;
+    const ls = $$('.wv', el).map(n => ({ n, c: 0, g: 0, tg: 0 }));
+    let raf = 0, near = 0, tNear = 0;
+    const measure = () => { for (const l of ls) { const r = l.n.getBoundingClientRect(); l.c = r.left + r.width / 2; } };
+    const paint = () => {
+      raf = 0;
+      near += (tNear - near) * .14;
+      const base = parseFloat(el.style.fontStretch) || 125;
+      let busy = Math.abs(tNear - near) > .004;
+      for (const l of ls) {
+        l.g += (l.tg - l.g) * .16;
+        if (Math.abs(l.tg - l.g) > .004) busy = true;
+        const squeeze = near * (1 - l.g);
+        l.n.style.fontStretch = (base - (base - 62) * squeeze * .8).toFixed(1) + '%';
+        l.n.style.fontWeight = Math.round(900 - 620 * squeeze);
+      }
+      if (busy) raf = requestAnimationFrame(paint);
+      else if (!tNear) ls.forEach(l => { l.n.style.fontStretch = l.n.style.fontWeight = ''; });
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(paint); };
+    addEventListener('pointermove', e => {
+      const r = el.getBoundingClientRect();
+      const inside = e.clientY > r.top - 50 && e.clientY < r.bottom + 50 && e.clientX > r.left - 60 && e.clientX < r.right + 60;
+      if (!inside) { if (tNear) { tNear = 0; kick(); } return; }
+      if (!tNear) measure();
+      tNear = 1;
+      const span = Math.max(90, r.width * .13);
+      for (const l of ls) { const d = (e.clientX - l.c) / span; l.tg = Math.exp(-d * d); }
+      kick();
+    }, { passive: true });
+  }
+
+  /* Buttons lean toward a pointer that comes close. */
+  function magnets() {
+    if (!fine || calm) return;
+    const els = $$('[data-magnet]');
+    addEventListener('pointermove', e => {
+      for (const el of els) {
+        const r = el.getBoundingClientRect();
+        if (r.bottom < -120 || r.top > innerHeight + 120) continue;
+        const x0 = parseFloat(el.dataset.mx) || 0, y0 = parseFloat(el.dataset.my) || 0;
+        const dx = e.clientX - (r.left - x0 + r.width / 2), dy = e.clientY - (r.top - y0 + r.height / 2);
+        const reach = r.width / 2 + 70, d = Math.hypot(dx, dy);
+        const k = d < reach ? (1 - d / reach) * .55 + .12 : 0;
+        el.dataset.mx = dx * k; el.dataset.my = dy * k;
+        el.style.translate = k ? `${(dx * k).toFixed(1)}px ${(dy * k).toFixed(1)}px` : '';
+      }
+    }, { passive: true });
+  }
+
   /* The 3D hero lives in hero.js. If WebGL or that file fails, the flat hero takes over. */
   const flatHero = () => { sky(); heroMotion(); };
   if (document.documentElement.classList.contains('gl')) {
@@ -641,10 +832,13 @@
   } else flatHero();
   barTone();
   turnSection();
-  closeUp();
+  picker();
   shop();
+  fit();
   sheet();
   reveals();
   cursor();
+  $$('[data-wave]').forEach(wave);
+  magnets();
   runScrubs();
 })();

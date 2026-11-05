@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-v="14">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -13,7 +13,7 @@
 <link rel="icon" href="img/star.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="preload" href="fonts/archivo-italic.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=14">
 <script>
 /* The intro plays once per visit. It is pure CSS, so a script failure can never leave it covering the page. */
 (function () {
@@ -55,7 +55,7 @@
   </a>
   <nav class="bar-nav" aria-label="Main">
     <a class="ul" href="#shop">Shop</a>
-    <a class="ul" href="#closeup">Up close</a>
+    <a class="ul" href="#fit">Build a fit</a>
   </nav>
   <a class="ul bar-etsy" href="https://www.etsy.com/shop/TrueOffline" rel="noopener">Etsy</a>
 </header>
@@ -80,7 +80,11 @@
     </div>
     <div class="hero-foot" data-hero-foot>
       <p class="hero-line">Clothes for outside.</p>
-      <a class="cta" href="#shop"><span>Shop all 20</span><span class="cta-arrow" aria-hidden="true">&darr;</span></a>
+      <div class="picker" data-picker-wrap>
+        <a class="picker-now ul" data-picker-now href="#/blossom-baggy-zip-hoodie"></a>
+        <div class="picker-row" role="group" aria-label="Choose the hoodie on show" data-picker></div>
+      </div>
+      <a class="cta" data-magnet href="#shop"><span>Shop all 20</span><span class="cta-arrow" aria-hidden="true">&darr;</span></a>
     </div>
   </div>
 </section>
@@ -99,32 +103,45 @@
 
 </div>
 
-<section class="closeup" id="closeup" aria-labelledby="close-h">
-  <div class="close-pin">
-    <div class="close-glow" data-close-glow aria-hidden="true"></div>
-    <div class="close-words" data-close-words aria-hidden="true"></div>
-    <canvas class="close-petals" data-close-petals aria-hidden="true"></canvas>
-    <div class="close-track" data-close-track>
-      <div class="close-intro">
-        <h2 id="close-h" class="mask"><span>Up<br>close.</span></h2>
-        <p class="rv">Printed, washed and faded. The details are the reason to look twice.</p>
-      </div>
-    </div>
-    <div class="close-meter" aria-hidden="true">
-      <span data-close-n>01</span>
-      <i><b data-close-bar></b></i>
-      <span data-close-total>06</span>
-    </div>
-  </div>
-</section>
-
 <section class="shop" id="shop" aria-labelledby="shop-h">
-  <div class="shop-head">
-    <h2 id="shop-h" data-stretch>The line</h2>
+  <div class="line-head">
+    <h2 id="shop-h" data-stretch data-wave>The line</h2>
+    <p class="line-sub rv">Twenty pieces, washed, printed and faded. Move across a piece to turn it round.</p>
+  </div>
+  <div class="line-bar" data-line-bar>
     <div class="chips" role="group" aria-label="Filter by type" data-chips></div>
+    <p class="line-count" aria-live="polite" data-count></p>
+    <div class="sorts" role="group" aria-label="Sort" data-sorts>
+      <button type="button" data-sort="featured" aria-pressed="true">Featured</button>
+      <button type="button" data-sort="low" aria-pressed="false">Price, low first</button>
+      <button type="button" data-sort="high" aria-pressed="false">Price, high first</button>
+    </div>
   </div>
   <ul class="grid" data-grid></ul>
   <noscript><p class="shop-noscript">The shop needs JavaScript. Everything is also on <a href="https://www.etsy.com/shop/TrueOffline">Etsy</a>.</p></noscript>
+</section>
+
+<section class="fit" id="fit" aria-labelledby="fit-h">
+  <div class="fit-glow" data-fit-glow aria-hidden="true"></div>
+  <div class="fit-side">
+    <h2 id="fit-h" class="mask"><span>Build<br>a fit.</span></h2>
+    <p class="fit-sub rv">Swipe the top and the bottom until it works, or leave it to chance.</p>
+    <dl class="fit-bill" data-fit-bill></dl>
+    <button class="fit-shuffle" type="button" data-fit-shuffle data-magnet>Shuffle</button>
+    <p class="fit-small">Each piece checks out on its own Etsy listing.</p>
+  </div>
+  <div class="fit-stage" data-cursor="Drag">
+    <div class="reel-wrap">
+      <button class="reel-go" type="button" data-go="-1" aria-label="Previous top">&larr;</button>
+      <div class="reel" data-reel="top" tabindex="0" role="listbox" aria-label="Tops"></div>
+      <button class="reel-go" type="button" data-go="1" aria-label="Next top">&rarr;</button>
+    </div>
+    <div class="reel-wrap">
+      <button class="reel-go" type="button" data-go="-1" aria-label="Previous bottom">&larr;</button>
+      <div class="reel" data-reel="bottom" tabindex="0" role="listbox" aria-label="Bottoms"></div>
+      <button class="reel-go" type="button" data-go="1" aria-label="Next bottom">&rarr;</button>
+    </div>
+  </div>
 </section>
 
 <section class="facts" aria-label="Shipping and returns">
@@ -146,7 +163,7 @@
       <li><a class="ul" href="https://www.instagram.com/trueoffline.clothing/" rel="noopener">Instagram</a></li>
     </ul>
   </div>
-  <p class="foot-wm" aria-hidden="true" data-stretch="end">True Offline</p>
+  <p class="foot-wm" aria-hidden="true" data-stretch="end" data-wave>True Offline</p>
 </footer>
 
 <div class="sheet" data-sheet role="dialog" aria-modal="true" aria-labelledby="sheet-name" hidden>
@@ -209,8 +226,8 @@
 
 <div class="cur" aria-hidden="true" data-cur></div>
 
-<script src="data.js?v=8"></script>
-<script src="app.js?v=8"></script>
-<script src="hero.js?v=8" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
+<script src="data.js?v=14"></script>
+<script src="app.js?v=14"></script>
+<script src="hero.js?v=14" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
 </body>
 </html>

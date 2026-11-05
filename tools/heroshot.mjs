@@ -1,4 +1,4 @@
-// node tools/heroshot.mjs <outdir> [tag] : renders the 3D stage and Up Close on the real GPU
+// node tools/heroshot.mjs <outdir> [tag] : renders the 3D stage, the line and Build a fit on the real GPU
 import { createRequire } from 'module';
 import path from 'path';
 const require = createRequire(import.meta.url);
@@ -24,7 +24,7 @@ async function tour(p, n) {
   // the automatic turn shows the front at about eight seconds in
   await p.waitForTimeout(6200);
   await shot(p, `${n}-front`);
-  const m = await p.evaluate(() => ({ heroH: document.querySelector('#hero').offsetHeight - innerHeight, turn: document.querySelector('#turn').offsetTop, turnH: document.querySelector('#turn').offsetHeight - innerHeight, close: document.querySelector('#closeup').offsetTop, closeH: document.querySelector('#closeup').offsetHeight - innerHeight }));
+  const m = await p.evaluate(() => ({ heroH: document.querySelector('#hero').offsetHeight - innerHeight, turn: document.querySelector('#turn').offsetTop, turnH: document.querySelector('#turn').offsetHeight - innerHeight, shop: document.querySelector('#shop').offsetTop, fit: document.querySelector('#fit').offsetTop }));
   const go = async (y, wait = 500) => { await p.evaluate(v => scrollTo({ top: v, behavior: 'instant' }), y); await p.waitForTimeout(wait); };
   await go(m.heroH * .6); await shot(p, `${n}-dive`);
   await go(m.turn + m.turnH * .03); await shot(p, `${n}-t0`);
@@ -32,10 +32,11 @@ async function tour(p, n) {
   await go(m.turn + m.turnH * .25, 700); await shot(p, `${n}-tswap`);
   await go(m.turn + m.turnH * .4, 700); await shot(p, `${n}-t2`);
   await go(m.turn + m.turnH * .9, 700); await shot(p, `${n}-t3`);
-  await go(m.close + 4, 900); await shot(p, `${n}-c0`);
-  await go(m.close + m.closeH * .26, 700); await shot(p, `${n}-c1`);
-  await go(m.close + m.closeH * .58, 700); await shot(p, `${n}-c2`);
-  await go(m.close + m.closeH * .995, 700); await shot(p, `${n}-c3`);
+  await go(m.shop + 2, 1400); await shot(p, `${n}-line`);
+  await go(m.shop + 620, 1300); await shot(p, `${n}-line2`);
+  await go(m.shop + 1500, 1300); await shot(p, `${n}-line3`);
+  await go(m.fit, 1500); await shot(p, `${n}-fit`);
+  await go(1e6, 1200); await shot(p, `${n}-end`);
 }
 
 const d = await open('d', { width: 1440, height: 900 });

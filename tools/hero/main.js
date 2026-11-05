@@ -10,6 +10,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { garmentGeometry } from './garment.js';
 import GL from './glyphs.json';
 import SIZE from './size.json';
 
@@ -23,6 +24,7 @@ const rng = seed => () => { seed |= 0; seed = seed + 0x6d2b79f5 | 0; let t = Mat
 
 const STAR = [[135, 0], [137, 74], [332, 60], [147, 114], [150, 195], [87, 147], [17, 199], [57, 127], [0, 82], [90, 78]];
 const coarse = matchMedia('(pointer:coarse)').matches;
+const VER = document.documentElement.dataset.v || '1';
 
 function fail(err) {
   console.warn('hero fallback', err);
@@ -105,8 +107,8 @@ function starGeometry(size, depth) {
 }
 
 /* Type laid along an arc. It always faces the viewer enough to read: letters turn only part of the
-   way with the curve (lean), and the rear arc faces inward, so nothing is ever seen backwards. */
-function arc(text, { R, cap, y = 0, lean = .55, rear = false, centre = 0, mat }) {
+   way with the curve (lean). Each letter keeps its rest pose so it can react to the pointer. */
+function arc(text, { R, cap, y = 0, lean = .55, mat }) {
   const g = new THREE.Group();
   const s = cap / GL.cap, gap = .13 * cap, space = .62 * cap;
   const items = [];
@@ -119,28 +121,15 @@ function arc(text, { R, cap, y = 0, lean = .55, rear = false, centre = 0, mat })
   }
   run -= gap;
   for (const it of items) {
-    const a = centre + (it.at - run / 2) / R;
+    const a = (it.at - run / 2) / R;
     const m = new THREE.Mesh(glyph(it.ch, cap), mat);
-    if (rear) { m.position.set(Math.sin(a) * R, y, -Math.cos(a) * R); m.rotation.y = -a * lean; }
-    else { m.position.set(Math.sin(a) * R, y, Math.cos(a) * R); m.rotation.y = a * lean; }
+    m.position.set(Math.sin(a) * R, y, Math.cos(a) * R);
+    m.rotation.y = a * lean;
+    m.userData.letter = { x: m.position.x, y, z: m.position.z, ry: a * lean, a, lift: 0, v: 0, flip: 0, flipTo: 0, sx: 0, sy: 0 };
     g.add(m);
   }
   g.userData.half = run / 2 / R;                  // half the arc, in radians
   return g;
-}
-
-function shell(geo, tex, nrm, hgt, w, h, depth, flip) {
-  const mat = new THREE.MeshPhysicalMaterial({
-    map: tex, normalMap: nrm, normalScale: new THREE.Vector2(.62, .62),
-    displacementMap: hgt, displacementScale: depth,
-    roughness: .9, metalness: 0, envMapIntensity: .18,
-    sheen: .4, sheenRoughness: .5, sheenColor: new THREE.Color(0x70727e),
-    alphaTest: .5, alphaToCoverage: true, side: THREE.FrontSide,
-  });
-  const m = new THREE.Mesh(geo, mat);
-  m.scale.set(w, h, 1);
-  if (flip) m.rotation.y = Math.PI;
-  return m;
 }
 
 function glowTexture(stops) {
@@ -295,32 +284,53 @@ async function start() {
     res(t);
   }, undefined, rej));
 
-  /* One bent grid serves every shell: each mesh scales it to its garment. */
-  const seg = coarse ? 230 : 340;
-  const grid = new THREE.PlaneGeometry(1, 1, seg, seg);
-  const H = 7.4, D = 1.25;
+  /* Each garment is one closed mesh with the two photos on it. Loaded once, then shared by the hero
+     and the featured stops. */
+  const H = 7.4;
+  const cloth = (map, normalMap) => new THREE.MeshPhysicalMaterial({
+    map, normalMap, normalScale: new THREE.Vector2(.55, .55),
+    roughness: .86, metalness: 0, envMapIntensity: .24,
+    sheen: .5, sheenRoughness: .55, sheenColor: new THREE.Color(0x6e7082),
+  });
+  const parts = new Map();
+  const loadParts = name => {
+    if (parts.has(name)) return parts.get(name);
+    const b = `img/hero/${name}`;
+    const job = Promise.all([
+      fetch(`${b}.bin?v=${VER}`).then(r => { if (!r.ok) throw new Error(b); return r.arrayBuffer(); }),
+      load(`${b}-front.webp?v=${VER}`, true), load(`${b}-front-n.webp?v=${VER}`),
+      load(`${b}-back.webp?v=${VER}`, true), load(`${b}-back-n.webp?v=${VER}`),
+    ]).then(([buf, fc, fn, bc, bn]) => {
+      const { body, cap, W } = garmentGeometry(buf, H, SIZE[name]);
+      const mats = [cloth(fc, fn), cloth(bc, bn)];
+      // Pale garments would burn out under lights set for black fleece, so they take less of it.
+      const hex = parseInt(SIZE[name].inner.slice(1), 16);
+      const pale = ((hex >> 16) + (hex >> 8 & 255) + (hex & 255)) / 3 / 255 / .34;
+      const gain = clamp(1 - (pale - .45) * 1.25, .5, 1);
+      mats.forEach(m => { m.color.setScalar(gain); m.sheenColor.multiplyScalar(gain); });
+      return { body, cap, W, mats, inside: new THREE.MeshStandardMaterial({ color: SIZE[name].inner, roughness: 1, envMapIntensity: .1 }) };
+    });
+    parts.set(name, job);
+    return job;
+  };
   async function garment(name) {
-    const b = `img/hero/${name}-`;
-    const [fc, fn, fh, bc, bn, bh] = await Promise.all([
-      load(b + 'front.webp', true), load(b + 'front-n.webp'), load(b + 'front-h.webp'),
-      load(b + 'back.webp', true), load(b + 'back-n.webp'), load(b + 'back-h.webp'),
-    ]);
-    const W = H * SIZE[name].w / SIZE[name].h;
+    const { body, cap, W, mats, inside } = await loadParts(name);
     const g = new THREE.Group();
-    g.add(shell(grid, fc, fn, fh, W, H, D, false), shell(grid, bc, bn, bh, W, H, D, true));
+    g.add(new THREE.Mesh(body, mats), new THREE.Mesh(cap, inside));
     g.userData.w = W;
     return g;
   }
 
-  const hoodie = await garment('blossom');
-  const W = hoodie.userData.w;
+  const hoodie = new THREE.Group();              // holds whichever piece is on show
+  const firstPiece = await garment('blossom');
+  hoodie.add(firstPiece);
+  const W = firstPiece.userData.w;
   const rig = new THREE.Group();                 // everything that leans with the pointer
   rig.add(hoodie);
   scene.add(rig);
 
   /* chrome wordmark ring */
   const chrome = new THREE.MeshStandardMaterial({ color: 0xf4f5fb, metalness: 1, roughness: .055 });
-  const dimChrome = new THREE.MeshStandardMaterial({ color: 0xd8d9e4, metalness: 1, roughness: .14 });
   const R = 9.1;
   const band = (radius, y) => {
     const t = new THREE.Mesh(new THREE.TorusGeometry(radius, .032, 10, 240), chrome);
@@ -333,8 +343,6 @@ async function start() {
     const word = arc('TRUE OFFLINE', { R, cap, mat: chrome, lean: .3 });
     ringWide.add(word, band(R, -.17));
     ringWide.userData.half = word.userData.half + .2;
-    ringWide.add(arc('RALEIGH', { R, cap: .46, rear: true, centre: -.82, mat: dimChrome, lean: .75 }));
-    ringWide.add(arc('N.C.', { R, cap: .46, rear: true, centre: .82, mat: dimChrome, lean: .75 }));
     const sideStar = starGeometry(1.15, .14);
     [-1, 1].forEach(s => {
       const a = s * (word.userData.half + .2);
@@ -367,7 +375,7 @@ async function start() {
   orbitTilt.add(orbit);
   rig.add(orbitTilt);
   const OR = 9.8;
-  const orbitStar = starGeometry(2.3, .26);
+  const orbitStar = starGeometry(1.5, .2);
   [
     [chrome, 0, 1],
     [new THREE.MeshStandardMaterial({ color: COBALT, metalness: .85, roughness: .22, emissive: COBALT, emissiveIntensity: .9 }), .13, .9],
@@ -380,22 +388,6 @@ async function start() {
     pivot.add(m);
     orbit.add(pivot);
   });
-  {
-    const pts = [];
-    const n = 90, arcLen = 1.25;
-    for (let i = 0; i <= n; i++) { const a = (i / n) * arcLen; pts.push(new THREE.Vector3(Math.sin(a) * OR, 0, Math.cos(a) * OR)); }
-    const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, .03, 6);
-    const col = new Float32Array(tube.attributes.position.count * 3);
-    const c = new THREE.Color();
-    for (let i = 0; i < tube.attributes.position.count; i++) {
-      const v = new THREE.Vector3().fromBufferAttribute(tube.attributes.position, i);
-      const k = clamp(Math.atan2(v.x, v.z) / arcLen);
-      c.set(COBALT).lerp(new THREE.Color(0xffffff), Math.pow(1 - k, 5)).multiplyScalar(Math.pow(1 - k, 1.5) * 3.2);
-      col.set([c.r, c.g, c.b], i * 3);
-    }
-    tube.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    orbit.add(new THREE.Mesh(tube, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })));
-  }
 
   /* blossom branches framing the top of the shot */
   const petalMap = petalTexture();
@@ -445,12 +437,12 @@ async function start() {
   const pr = rng(5), P = [];
   const px0 = new THREE.Object3D(), pcol = new THREE.Color();
   for (let i = 0; i < N; i++) {
-    P.push({ x: (pr() - .5) * 30, y: (pr() - .5) * 22, z: lerp(-11, 13, pr()), fall: .55 + pr() * .75, ph: pr() * 6.28, f: .5 + pr() * .9, a: .4 + pr() * .9, rx: pr() * 6.28, ry: pr() * 6.28, sx: (pr() - .5) * 2.2, sy: (pr() - .5) * 2.6, s: .7 + pr() * .9 });
+    P.push({ x: (pr() - .5) * 30, y: (pr() - .5) * 22, z: lerp(-11, 13, pr()), fall: .55 + pr() * .75, ph: pr() * 6.28, f: .5 + pr() * .9, a: .4 + pr() * .9, rx: pr() * 6.28, ry: pr() * 6.28, sx: (pr() - .5) * 2.2, sy: (pr() - .5) * 2.6, s: .7 + pr() * .9, vx: 0, vy: 0, vz: 0 });
     petals.setColorAt(i, pcol.setHSL(.955, .5 + pr() * .4, .82 + pr() * .14));
   }
 
   /* light on the fabric */
-  const key = new THREE.DirectionalLight(0xfff2ea, 3); key.position.set(-5, 9, 11); scene.add(key);
+  const key = new THREE.DirectionalLight(0xfff2ea, 3.5); key.position.set(-5, 9, 11); scene.add(key);
   const rimA = new THREE.DirectionalLight(0x3a62ff, 3.2); rimA.position.set(14, 1, -1); scene.add(rimA);
   const rimB = new THREE.DirectionalLight(SAKURA, 2.2); rimB.position.set(-14, 4, -1); scene.add(rimB);
   const under = new THREE.DirectionalLight(0xff8fb6, .5); under.position.set(0, -10, 5); scene.add(under);
@@ -492,6 +484,49 @@ async function start() {
       s.pivot.add(s.body);
     }
   };
+
+  /* The five pieces you can put on the hero. Spinning it round swaps the garment at the far side. */
+  const PIECES = [['blossom', 0xff9fbe], ['pagoda', 0xff5f96], ['globe', 0xd8467e], ['rooster', 0xff6a2a], ['dreamer', 0xe9d3b0]];
+  const heroModels = new Map([['blossom', firstPiece]]);
+  const heroTint = new THREE.Color(0xff9fbe);
+  let swap = null, shownPiece = 0, wantPiece = 0;
+  async function pick(i) {
+    wantPiece = i;
+    const [name, col] = PIECES[i];
+    if (!heroModels.has(name)) heroModels.set(name, await garment(name));
+    if (wantPiece !== i || i === shownPiece) return;
+    heroTint.set(col);
+    if (calm) {
+      hoodie.clear(); hoodie.add(heroModels.get(name)); shownPiece = i;
+      requestAnimationFrame(frame);
+      return;
+    }
+    swap = { t: 0, i, done: false };
+  }
+
+  /* letters that answer the pointer */
+  const lettersOf = g => { const l = []; g.traverse(o => { if (o.userData.letter) l.push(o); }); return l; };
+  const heroLettersWide = lettersOf(ringWide), heroLettersTall = lettersOf(ringTall);
+  stops.forEach(s => { s.letters = lettersOf(s.wordRing); });
+  const lp = new THREE.Vector3();
+  function reactLetters(list, dt, w, h) {
+    const reach = Math.max(120, w * .1);
+    for (const m of list) {
+      const L = m.userData.letter;
+      lp.setFromMatrixPosition(m.matrixWorld).project(camera);
+      L.sx = (lp.x * .5 + .5) * w; L.sy = (-lp.y * .5 + .5) * h;
+      const dx = L.sx - mx, dy = L.sy - my;
+      const k = pointerOn ? Math.exp(-(dx * dx + dy * dy) / (reach * reach)) : 0;
+      L.v += ((k - L.lift) * 130 - L.v * 13) * dt;
+      L.lift += L.v * dt;
+      L.flip += (L.flipTo - L.flip) * Math.min(1, dt * 5.5);
+      const out = L.lift * .75;
+      m.position.set(L.x + Math.sin(L.a) * out, L.y + L.lift * .16, L.z + Math.cos(L.a) * out);
+      m.rotation.set(clamp(dy / reach, -1, 1) * -.5 * L.lift, L.ry + clamp(dx / reach, -1, 1) * .7 * L.lift + L.flip, 0);
+      m.scale.setScalar(1 + L.lift * .12);
+    }
+  }
+  const liveLetters = () => (portrait ? heroLettersTall : heroLettersWide);
 
   /* post */
   const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
@@ -544,17 +579,64 @@ async function start() {
 
   /* input */
   let px = 0, py = 0, tx = 0, ty = 0;
-  if (!coarse) addEventListener('pointermove', e => { tx = e.clientX / innerWidth - .5; ty = e.clientY / innerHeight - .5; }, { passive: true });
-  let drag = null, spin = 0, extra = 0, idleAt = -1e4;
-  canvas.addEventListener('pointerdown', e => { drag = { last: e.clientX }; canvas.setPointerCapture(e.pointerId); });
+  let mx = -9999, my = -9999, lastMx = 0, lastMy = 0, pointerOn = false, wvx = 0, wvy = 0, gust = 0;
+  const rayDir = new THREE.Vector3();
+  const aim = (cx, cy) => {
+    rayDir.set(cx / wrap.clientWidth * 2 - 1, 1 - cy / wrap.clientHeight * 2, .5).unproject(camera).sub(camera.position).normalize();
+  };
+  addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch' && !drag) return;
+    tx = e.clientX / innerWidth - .5; ty = e.clientY / innerHeight - .5;
+    mx = e.clientX; my = e.clientY; pointerOn = true;
+  }, { passive: true });
+  document.documentElement.addEventListener('pointerleave', () => { pointerOn = false; tx = ty = 0; });
+
+  let drag = null, spin = 0, extra = 0, tiltX = 0, idleAt = -1e4;
+  canvas.addEventListener('pointerdown', e => {
+    drag = { last: e.clientX, lastY: e.clientY, x: e.clientX, y: e.clientY, t: performance.now(), far: false };
+    mx = e.clientX; my = e.clientY; pointerOn = true;
+    canvas.setPointerCapture(e.pointerId);
+  });
   canvas.addEventListener('pointermove', e => {
     if (!drag) return;
-    const dx = e.clientX - drag.last; drag.last = e.clientX;
+    const dx = e.clientX - drag.last, dy = e.clientY - drag.lastY;
+    drag.last = e.clientX; drag.lastY = e.clientY;
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 7) drag.far = true;
     extra += dx * .0095; spin = dx * .0095;
+    tiltX = clamp(tiltX + dy * .0045, -.55, .55);
   });
-  const up = () => { drag = null; idleAt = performance.now(); };
+  const up = e => {
+    const tap = drag && !drag.far && performance.now() - drag.t < 400;
+    drag = null; idleAt = performance.now();
+    if (e.pointerType === 'touch') pointerOn = false;
+    if (tap && e.type === 'pointerup') tapAt(e.clientX, e.clientY);
+  };
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', up);
+
+  /* A tap flips the nearest letter, or throws a handful of petals from wherever you touched. */
+  let nextPetal = 0, flips = 0, bursts = 0;
+  function tapAt(cx, cy) {
+    if (calm) return;
+    const list = inGalleryNow ? stops.flatMap(s => (s.pivot.visible ? s.letters : [])) : liveLetters();
+    let best = null, bd = Math.max(46, wrap.clientWidth * .035);
+    for (const m of list) {
+      const L = m.userData.letter, d = Math.hypot(L.sx - cx, L.sy - cy);
+      if (d < bd) { bd = d; best = L; }
+    }
+    if (best) { best.flipTo += Math.PI * 2; flips++; return; }
+    bursts++;
+    aim(cx, cy);
+    const k = (5 - camera.position.z) / rayDir.z;
+    const ox = camera.position.x + rayDir.x * k, oy = camera.position.y + rayDir.y * k;
+    const live = petals.count;
+    for (let i = 0; i < 54; i++) {
+      const q = P[nextPetal = (nextPetal + 1) % live];
+      const a = pr() * 6.283, v = 2.5 + pr() * 7.5;
+      q.x = ox; q.y = oy; q.z = 5 + (pr() - .5) * 1.5;
+      q.vx = Math.cos(a) * v; q.vy = Math.sin(a) * v + 1.8; q.vz = (pr() - .5) * 5;
+    }
+  }
 
   let visible = true, last = performance.now();
   new IntersectionObserver(([e]) => {
@@ -564,7 +646,7 @@ async function start() {
 
   const introing = document.documentElement.classList.contains('intro');
   const begin = Math.max(performance.now(), introing ? 1020 : 0);
-  let orbitAngle = 1, samples = 0, slow = 0, tuned = false, showTime = 0;
+  let orbitAngle = 1, samples = 0, slow = 0, tuned = false, showTime = 0, inGalleryNow = false;
   const tint = new THREE.Color(0xff9fbe), tmp = new THREE.Color();
 
   function frame(now) {
@@ -581,11 +663,37 @@ async function start() {
     const dive = smooth(.04, .9, p);
     const inGallery = p >= .985;
 
-    px += (tx - px) * .05; py += (ty - py) * .05;
+    px += (tx - px) * .07; py += (ty - py) * .07;
+    inGalleryNow = inGallery;
+
+    // how fast the pointer is moving through the scene, in world units a second
+    const pw = wrap.clientWidth, ph = wrap.clientHeight;
+    const unit = viewW / pw;
+    if (dt > 0) {
+      wvx += (clamp((mx - lastMx) / dt * unit, -40, 40) - wvx) * .2;
+      wvy += (clamp(-(my - lastMy) / dt * unit, -40, 40) - wvy) * .2;
+    }
+    lastMx = mx; lastMy = my;
+    gust += (Math.min(1, Math.abs(wvx) / 26) - gust) * .06;
 
     if (!drag) {
       extra += spin; spin *= .94;
+      tiltX *= .94;
       if (now - idleAt > 1600 && Math.abs(spin) < .002) extra += (Math.round(extra / (Math.PI * 2)) * Math.PI * 2 - extra) * .035;
+    }
+
+    // swapping the piece: one fast turn, changing garment at the far side
+    let swapSpin = 0, swapScale = 1;
+    if (swap) {
+      swap.t = Math.min(1, swap.t + dt / 1.05);
+      swapSpin = inOut(swap.t) * Math.PI * 2;
+      swapScale = 1 - Math.sin(Math.PI * swap.t) * .14;
+      if (!swap.done && swap.t >= .5) {
+        swap.done = true;
+        hoodie.clear(); hoodie.add(heroModels.get(PIECES[swap.i][0]));
+        shownPiece = swap.i;
+      }
+      if (swap.t >= 1) { swap = null; swapSpin = 0; }
     }
 
     rig.visible = trees.visible = !inGallery;
@@ -599,9 +707,13 @@ async function start() {
       const shown = (turns * 2 + a) * Math.PI;
       const homeBack = Math.round(shown / (Math.PI * 2)) * Math.PI * 2;
       const sway = calm ? .22 : Math.sin(t * .42) * .26 * (1 - dive);
-      hoodie.rotation.y = Math.PI + lerp(shown, homeBack, smooth(0, .4, dive)) + sway + extra * (1 - dive) + (1 - inn) * -Math.PI * 1.2;
-      hoodie.position.y = lerp(-13, .05, inn) + Math.sin(t * .8) * .09 * (1 - dive);
-      hoodie.rotation.z = Math.sin(t * .55) * .012;
+      const lean = 1 - dive;
+      hoodie.rotation.y = Math.PI + lerp(shown, homeBack, smooth(0, .4, dive)) + sway + extra * lean + (1 - inn) * -Math.PI * 1.2 + px * .55 * lean + swapSpin;
+      hoodie.rotation.x = (py * .2 + tiltX) * lean;
+      hoodie.position.x = px * .4 * lean;
+      hoodie.position.y = lerp(-13, .05, inn) + Math.sin(t * .8) * .09 * lean - py * .2 * lean;
+      hoodie.rotation.z = Math.sin(t * .55) * .012 - px * .03 * lean;
+      hoodie.scale.setScalar(swapScale);
 
       if (!calm) orbitAngle += dt * (.34 + (1 - inn) * 1.6);
       orbit.rotation.y = orbitAngle;
@@ -616,8 +728,8 @@ async function start() {
       orbitTilt.scale.setScalar(lerp(1.6, 1, inn) + dive * 1.2);
       rig.rotation.y = px * .16;
       rig.rotation.x = py * .08;
-      treeL.rotation.z = Math.sin(t * .6) * .007;
-      treeR.rotation.z = Math.sin(t * .5 + 1) * .008;
+      treeL.rotation.z = Math.sin(t * .6) * .007 + Math.sin(t * 7) * gust * .018;
+      treeR.rotation.z = Math.sin(t * .5 + 1) * .008 + Math.sin(t * 6.3 + 1) * gust * .02;
       trees.position.y = (1 - inn) * 5 + dive * 7;
       trees.position.z = dive * 5;
     } else {
@@ -632,7 +744,8 @@ async function start() {
         const en = i === 0 ? 1 : inOut(clamp((local + .16) / .32));
         const lv = i === STOPS.length - 1 ? 0 : inOut(clamp((local - .84) / .32));
         const turnT = inOut(clamp((local - .08) / .5));
-        s.body.rotation.y = turnT * Math.PI + (1 - en) * -1.3 + lv * 1.3 + (calm ? Math.PI : 0) + extra + Math.sin(t * .5) * .05 + px * .22;
+        s.body.rotation.y = turnT * Math.PI + (1 - en) * -1.3 + lv * 1.3 + (calm ? Math.PI : 0) + extra + Math.sin(t * .5) * .05 + px * .5;
+        s.body.rotation.x = py * .18 + tiltX;
         s.body.position.set((1 - en) * viewW * .95 - lv * viewW * .95, Math.sin(t * .8 + i) * .07, 0);
         s.wordRing.rotation.y = (1 - en) * 1.7 - lv * 1.7 + px * .1;
         s.tilt.scale.setScalar(portrait ? clamp(viewW / 15.5, .5, 1) : 1);
@@ -640,7 +753,7 @@ async function start() {
       tmp.copy(stops[best].tint);
       tint.lerp(tmp, .08);
     }
-    if (!inGallery) tint.lerp(tmp.set(0xff9fbe), .08);
+    if (!inGallery) tint.lerp(heroTint, .08);
     halo.material.color.copy(tint);
     halo.scale.setScalar(portrait ? .72 : 1);
     rimB.color.copy(tint);
@@ -662,16 +775,35 @@ async function start() {
       camera.lookAt(0, lerp(portrait ? -.2 : -.62, 1.15, dive), 0);
     }
 
-    // petals: drift and tumble; on the dive they stream past the lens
+    camera.updateMatrixWorld();
+    if (!calm) {
+      if (inGallery) { for (const s of stops) if (s.pivot.visible) reactLetters(s.letters, dt, pw, ph); }
+      else if (dive < .5) reactLetters(liveLetters(), dt, pw, ph);
+    }
+
+    // petals: drift and tumble, swerve round the pointer, and on the dive stream past the lens
     const wind = .34 + px * 1.1, rush = dive * (inGallery ? 0 : 11);
     const half = viewW * .72;
+    if (pointerOn) aim(mx, my);
+    const damp = Math.exp(-dt * 1.9), PUSH = 2.5;
     for (let i = 0; i < N; i++) {
       const q = P[i];
       if (!calm) {
-        q.y -= q.fall * dt;
-        q.x += (wind + Math.sin(t * q.f + q.ph) * q.a) * dt;
-        q.z += (Math.cos(t * q.f * .7 + q.ph) * .22 + rush) * dt;
-        if (q.y < -11) { q.y = 11.5; q.x = (pr() - .5) * half * 2; }
+        if (pointerOn) {
+          const k = (q.z - camera.position.z) / rayDir.z;
+          const dx = q.x - (camera.position.x + rayDir.x * k), dy = q.y - (camera.position.y + rayDir.y * k);
+          const d2 = dx * dx + dy * dy;
+          if (d2 < PUSH * PUSH) {
+            const d = Math.sqrt(d2) + .001, f = (1 - d / PUSH) * (1 - d / PUSH);
+            q.vx += (dx / d * 30 + wvx * 2.2) * f * dt;
+            q.vy += (dy / d * 30 + wvy * 2.2) * f * dt;
+          }
+        }
+        q.vx *= damp; q.vy *= damp; q.vz *= damp;
+        q.y += (q.vy - q.fall) * dt;
+        q.x += (wind + q.vx + Math.sin(t * q.f + q.ph) * q.a) * dt;
+        q.z += (Math.cos(t * q.f * .7 + q.ph) * .22 + rush + q.vz) * dt;
+        if (q.y < -11) { q.y = 11.5; q.x = (pr() - .5) * half * 2; q.vx = q.vy = 0; }
         if (q.x > half) q.x = -half; else if (q.x < -half) q.x = half;
         if (q.z > z - 1.2) q.z = -11;
       }
@@ -715,7 +847,6 @@ async function start() {
       o.geometry.computeBoundingBox();
       box.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
       for (const x of [box.min.x, box.max.x]) for (const z of [box.min.z, box.max.z]) {
-        if (z < 0) continue;                       // the rear arc is allowed to sit behind things
         v.set(x, (box.min.y + box.max.y) / 2, z).project(camera);
         const px = (v.x * .5 + .5) * wrap.clientWidth;
         left = Math.min(left, px); right = Math.max(right, px);
@@ -723,6 +854,9 @@ async function start() {
     });
     return { left: Math.round(left), right: Math.round(right), w: wrap.clientWidth };
   };
+
+  // The page drives the piece picker through this.
+  window.TO_hero = { pick, state: () => ({ piece: PIECES[shownPiece][0], flips, bursts }) };
 
   // Compile everything before showing it, so the first visible frame does not hitch.
   renderer.compile(scene, camera);

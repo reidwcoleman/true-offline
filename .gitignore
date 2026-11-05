@@ -4,3 +4,5 @@ tools/vision
 node_modules/
 tools/hero/fonts/
 __pycache__/
+
+site/_viewer.*

@@ -24,9 +24,6 @@ async function run(name, vp, mobile) {
     await p.waitForTimeout(350);
     await p.screenshot({ path: `${out}/${name}-2turn${i}.jpg`, quality: 80, type: 'jpeg' });
   }
-  await p.evaluate(() => document.querySelector('#closeup').scrollIntoView({ behavior: 'instant' }));
-  await p.waitForTimeout(1300);
-  await p.screenshot({ path: `${out}/${name}-2close.jpg`, quality: 80, type: 'jpeg' });
   await p.evaluate(() => document.querySelector('#shop').scrollIntoView({ behavior: 'instant' }));
   await p.waitForTimeout(1300);
   await p.screenshot({ path: `${out}/${name}-3shop.jpg`, quality: 80, type: 'jpeg' });
