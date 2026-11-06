@@ -322,6 +322,8 @@ async function start() {
     // Three tweaks to the stock shader: textures are read a little finer than the mip level asks for,
     // which is what keeps a print sharp; a share of the photo's own colour comes through untouched by
     // the coloured lights; and the tint sits only on the very edge, like light wrapping round cloth.
+    // On dyed fabric the photo sets the colour, because the studio's blues would push a wine red to
+    // magenta and buyers judge the garment by it. Greys and charcoals keep a soft tint from the lights.
     m.onBeforeCompile = sh => {
       sh.uniforms.rimColor = rimShared.rimColor;
       sh.fragmentShader = sh.fragmentShader
@@ -329,7 +331,7 @@ async function start() {
         .replace('#include <map_fragment>', 'vec4 sampledDiffuseColor = texture2D( map, vMapUv, -1.1 );\ndiffuseColor *= sampledDiffuseColor;')
         .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace('texture2D( normalMap, vNormalMapUv )', 'texture2D( normalMap, vNormalMapUv, -.6 )'))
         .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance *= sampledDiffuseColor.rgb;')
-        .replace('#include <opaque_fragment>', 'float edge = pow( 1. - saturate( dot( normalize( normal ), normalize( vViewPosition ) ) ), 3.4 );\noutgoingLight += rimColor * edge * .42;\n#include <opaque_fragment>');
+        .replace('#include <opaque_fragment>', 'float grey = dot( outgoingLight, vec3( .2126, .7152, .0722 ) );\nvec3 photo = sampledDiffuseColor.rgb / max( dot( sampledDiffuseColor.rgb, vec3( .2126, .7152, .0722 ) ), .02 );\nfloat dyed = smoothstep( .1, .4, max( photo.r, max( photo.g, photo.b ) ) - min( photo.r, min( photo.g, photo.b ) ) );\noutgoingLight = mix( outgoingLight, photo * grey, .8 * dyed );\noutgoingLight = max( mix( vec3( grey ), outgoingLight, 1.4 ), 0. );\noutgoingLight *= mix( vec3( 1. ), rimColor / max( max( rimColor.r, max( rimColor.g, rimColor.b ) ), .001 ), .1 );\nfloat edge = pow( 1. - saturate( dot( normalize( normal ), normalize( vViewPosition ) ) ), 3.4 );\noutgoingLight += rimColor * edge * .42;\n#include <opaque_fragment>');
     };
     return m;
   };
@@ -507,8 +509,8 @@ async function start() {
   key.shadow.normalBias = .05;
   const fill = new THREE.DirectionalLight(0xdfe4ff, .9); fill.position.set(8, 2, 10); scene.add(fill);
   const backFill = new THREE.DirectionalLight(0xfff0f4, 2.1); backFill.position.set(4, 6, -12); scene.add(backFill);
-  const rimA = new THREE.DirectionalLight(0x3a62ff, .5); rimA.position.set(14, 1, -1); scene.add(rimA);
-  const rimB = new THREE.DirectionalLight(SAKURA, .4); rimB.position.set(-14, 4, -1); scene.add(rimB);
+  const rimA = new THREE.DirectionalLight(0x3a62ff, .7); rimA.position.set(14, 1, -1); scene.add(rimA);
+  const rimB = new THREE.DirectionalLight(SAKURA, 1.1); rimB.position.set(-14, 4, -1); scene.add(rimB);
   scene.add(new THREE.AmbientLight(0xc4bdc9, .55));
 
   /* space */
@@ -524,7 +526,7 @@ async function start() {
 
   /* featured hoodies, one per stop as you scroll */
   const STOPS = [
-    ['pagoda', 'PAGODA', 0xff5f96], ['globe', 'GLOBE', 0xd8467e], ['rooster', 'ROOSTER', 0xff6a2a], ['dreamer', 'DREAMER', 0xe9d3b0],
+    ['pagoda', 'PAGODA', 0xff5f96], ['globe', 'GLOBE', 0xe6405a], ['rooster', 'ROOSTER', 0xff6a2a], ['dreamer', 'DREAMER', 0xe9d3b0],
   ];
   const gallery = new THREE.Group();
   gallery.visible = false;
@@ -554,7 +556,7 @@ async function start() {
   };
 
   /* The five pieces you can put on the hero. Spinning it round swaps the garment at the far side. */
-  const PIECES = [['blossom', 0xff9fbe], ['pagoda', 0xff5f96], ['globe', 0xd8467e], ['rooster', 0xff6a2a], ['dreamer', 0xe9d3b0]];
+  const PIECES = [['blossom', 0xff9fbe], ['pagoda', 0xff5f96], ['globe', 0xe6405a], ['rooster', 0xff6a2a], ['dreamer', 0xe9d3b0]];
   const firstPiece = await firstLoad;
   hoodie.add(firstPiece);
   await breathe();
