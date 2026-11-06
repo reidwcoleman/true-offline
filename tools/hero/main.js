@@ -594,9 +594,10 @@ async function start() {
       m.visible = away < .995 && up > .004;
       if (!m.visible) return;
       if (away > 0 || up < 1) {
-        m.position.set(L.x, L.y - away * 7 - (1 - up) * 3.4, L.z);
+        // On a phone the copy sits right under the word, so letters grow in place rather than slide through it.
+        m.position.set(L.x, L.y - away * 7 - (portrait ? 0 : (1 - up) * 3.4), L.z);
         m.rotation.set(0, L.ry, 0);
-        m.scale.setScalar(1);
+        m.scale.setScalar(portrait ? Math.max(.001, up) : 1);
         return;
       }
       lp.setFromMatrixPosition(m.matrixWorld).project(camera);
@@ -956,7 +957,7 @@ async function start() {
         lerp(Math.cos(arc) * z, z, pull),
       );
       const lookHero = lerp(portrait ? -.2 : -.62, .1, dive);
-      camera.lookAt(0, lerp(lookHero, portrait ? -.2 : -.5, pull) - wide * 1.2, -RC * .55 * wide);
+      camera.lookAt(0, lerp(lookHero, portrait ? -.75 : -.5, pull) - wide * 1.2, -RC * .55 * wide);
     }
 
     camera.updateMatrixWorld();
