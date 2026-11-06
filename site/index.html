@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-v="28">
+<html lang="en" data-v="29">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="preload" href="fonts/archivo-italic.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://www.etsy.com">
-<link rel="stylesheet" href="style.css?v=28">
+<link rel="stylesheet" href="style.css?v=29">
 <script>
 /* The intro plays once per visit. It is pure CSS, so a script failure can never leave it covering the page. */
 (function () {
@@ -27,6 +27,9 @@
   var light = net.saveData || /2g/.test(net.effectiveType || '') || (navigator.deviceMemory && navigator.deviceMemory < 2);
   try { if (!light && document.createElement('canvas').getContext('webgl2')) d.classList.add('gl'); } catch (e) {}
   var touch = matchMedia('(pointer:coarse)').matches;
+  /* On touch screens the page scrolls inside itself, not the browser window. The address bar then has
+     no reason to slide or snap, and there is no rubber band, so nothing can shift when a scroll stops. */
+  if (touch) d.classList.add('inner');
   /* Touch screens open on a still of the 3D scene. It paints at once and the live scene fades in over it. */
   if (touch && d.classList.contains('gl')) {
     d.classList.add('poster');
@@ -248,8 +251,8 @@
 
 <div class="cur" aria-hidden="true" data-cur></div>
 
-<script src="data.js?v=28"></script>
-<script src="app.js?v=28"></script>
-<script src="hero.js?v=28" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
+<script src="data.js?v=29"></script>
+<script src="app.js?v=29"></script>
+<script src="hero.js?v=29" defer onerror="window.TO_heroFail&&window.TO_heroFail()"></script>
 </body>
 </html>

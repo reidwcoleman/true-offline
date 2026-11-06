@@ -279,7 +279,7 @@ async function start() {
   renderer.toneMappingExposure = 1;
   const TIERS = LITE ? [1.75, 1.4, 1.1] : [2, 1.25];              // stepped down only if frames run long
   let tier = LITE && (navigator.deviceMemory || 4) < 4 ? 1 : 0;
-  let dpr = Math.min(devicePixelRatio || 1, TIERS[tier]);
+  let dpr = Math.min(devicePixelRatio || 1, TIERS[tier]), stepDown = false;
   renderer.setPixelRatio(dpr);
   renderer.shadowMap.enabled = !coarse;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -529,6 +529,11 @@ async function start() {
   const gallery = new THREE.Group();
   gallery.visible = false;
   scene.add(gallery);
+  const STEP = Math.PI * 2 / (STOPS.length + 1);
+  let RC = 20;                                     // carousel radius, set for the screen in resize()
+  const ringLine = new THREE.Mesh(new THREE.TorusGeometry(1, .0016, 8, 200), chromeLine);
+  ringLine.rotation.x = Math.PI / 2;
+  gallery.add(ringLine);
   const stops = STOPS.map(([name, word, tint]) => {
     const pivot = new THREE.Group();
     pivot.visible = false;
@@ -539,7 +544,7 @@ async function start() {
     tilt.add(wordRing);
     pivot.add(tilt);
     gallery.add(pivot);
-    return { name, tint: new THREE.Color(tint), pivot, wordRing, tilt, body: null };
+    return { name, tint: new THREE.Color(tint), pivot, wordRing, tilt, body: null, born: 0, rise: 0 };
   });
   const loadStops = async () => {
     for (const s of stops) {
@@ -660,6 +665,9 @@ async function start() {
     fitD = portrait
       ? (W * 1.02) / (2 * tan * camera.aspect)
       : Math.max(H / .66 / (2 * tan), (8.5 * 2.32) / (2 * tan * camera.aspect));
+    RC = portrait ? 13 : 20;
+    ringLine.scale.setScalar(RC);
+    ringLine.position.set(0, -4.5, -RC);
     ringWide.visible = !portrait;
     ringTall.visible = portrait;
     // The ends of the phrase sit nearest the lens, so perspective pushes them outward. This solves
@@ -739,7 +747,7 @@ async function start() {
   let nextPetal = 0, flips = 0, bursts = 0;
   function tapAt(cx, cy) {
     if (calm) return;
-    const list = inGalleryNow ? stops.flatMap(s => (s.pivot.visible ? s.letters : [])) : liveLetters();
+    const list = inGalleryNow ? stops.flatMap(s => (s.rise > .5 ? s.letters : [])) : liveLetters();
     let best = null, bd = Math.max(46, wrap.clientWidth * .035);
     for (const m of list) {
       const L = m.userData.letter, d = Math.hypot(L.sx - cx, L.sy - cy);
@@ -797,15 +805,28 @@ async function start() {
     const rawP = calm || span <= 0 ? 0 : clamp(-hr.top / span);
     if (rawP > .02) wantStops();
     const rawPos = clamp(-tr.top / (tr.height - stageH)) * STOPS.length;
-    sp += (rawP - sp) * (calm ? 1 : damp(11, dt)); sPos += (rawPos - sPos) * (calm ? 1 : damp(11, dt));
+    sp += (rawP - sp) * (calm ? 1 : damp(14, dt)); sPos += (rawPos - sPos) * (calm ? 1 : damp(14, dt));
     if (Math.abs(rawP - sp) < .0004) sp = rawP;
     if (Math.abs(rawPos - sPos) < .0006) sPos = rawPos;
     const p = sp, pos = sPos;
-    // Beat one turns the hoodie, beat two rests on the back, beat three hands over to the showcases.
-    // The camera never gets closer than the photos stay sharp, and there is no cut: one continuous move.
-    const dive = silk(clamp((p - .015) / .6));
-    const out = calm ? (rawPos > 0 ? 1 : 0) : silk(clamp((p - .78) / .22));
-    const inGallery = out > 0;
+    // The hoodie turns onto its back and the name slips away (dive). The camera then pulls back, never
+    // in, while the other pieces fly in to form one huge carousel (pull). Scrolling on spins the
+    // carousel from piece to piece (idx), pushing in on each and easing back out between them (wide).
+    const dive = silk(clamp((p - .015) / .42));
+    const pull = calm ? (rawPos > 0 ? 1 : 0) : silk(clamp((p - .4) / .6));
+    const first = calm ? 1 : silk(clamp(pos / .34));
+    let idx = rawPos > 0 ? first : 0, wide = calm ? 0 : pull * (1 - first);
+    if (calm) idx = rawPos > 0 ? 1 + Math.min(STOPS.length - 1, Math.floor(pos)) : 0;
+    else {
+      idx = first;
+      for (let i = 0; i < STOPS.length - 1; i++) {
+        const m = clamp((pos - (i + .84)) / .32);
+        idx += silk(m);
+        wide = Math.max(wide, Math.sin(Math.PI * m) * .3);
+      }
+    }
+    const phi = -idx * STEP;
+    const inGallery = pull > 0;
 
     px += (tx - px) * damp(5, dt); py += (ty - py) * damp(5, dt);
     inGalleryNow = inGallery;
@@ -840,11 +861,12 @@ async function start() {
       if (swap.t >= 1) { swap = null; swapSpin = 0; }
     }
 
-    rig.visible = out < 1;
     trees.visible = dive < 1;
     gallery.visible = inGallery;
+    orbitTilt.visible = pull < .6;
+    ringLine.visible = wide > .02;
 
-    if (out < 1) {
+    {
       // It shows its back, turns to show the front, then comes back round: both sides, little edge-on.
       // The automatic turn stops the moment scrolling starts, so the landing point can never shift.
       if (!calm && !drag && p < .001) showTime += dt;
@@ -855,12 +877,11 @@ async function start() {
       const lean = 1 - smooth(0, .3, dive);
       const sway = calm ? .22 : Math.sin(t * .42) * .26 * lean;
       // Scrolling winds it through a full turn that lands square on the back print.
-      const leave = -out * 1.3;                    // the hero leaves on the same carousel the others ride
-      hoodie.rotation.y = Math.PI + lerp(shown, homeBack + Math.PI * 2, dive) + sway + extra * lean + (1 - inn) * -Math.PI * 1.2 + px * .55 * lean + swapSpin + leave * 1.15;
+      hoodie.rotation.y = Math.PI + lerp(shown, homeBack + Math.PI * 2, dive) + sway + extra * lean + (1 - inn) * -Math.PI * 1.2 + px * .55 * lean + swapSpin + phi;
       hoodie.rotation.x = (py * .2 + tiltX) * lean;
-      hoodie.position.x = px * .4 * lean + Math.sin(leave) * viewW * .82;
-      hoodie.position.z = (Math.cos(leave) - 1) * 15;
-      hoodie.position.y = lerp(-13, .05, inn) + Math.sin(t * .8) * .09 * lean - py * .2 * lean;
+      hoodie.position.x = px * .4 * lean + Math.sin(phi) * RC;
+      hoodie.position.z = (Math.cos(phi) - 1) * RC;
+      hoodie.position.y = lerp(-13, lerp(.05, .42, pull), inn) + Math.sin(t * .8) * .09 * lean - py * .2 * lean;
       hoodie.rotation.z = Math.sin(t * .55) * .012 - px * .03 * lean;
       hoodie.scale.setScalar(swapScale);
 
@@ -873,10 +894,10 @@ async function start() {
       ringTilt.scale.set(lerp(1.5, 1, inn), 1, lerp(1.5, 1, inn));
       ringTilt.rotation.x = TILT;
       ringTilt.position.y = (portrait ? -3.5 : DROP) - silk(clamp(dive / .6)) * 9;
-      rig.position.y = portrait ? .85 * (1 - dive) : 0;
+      rig.position.y = portrait ? .85 * (1 - pull) : 0;
       orbitTilt.scale.setScalar(lerp(1.6, 1, inn) + dive * .7);
-      rig.rotation.y = px * .16;
-      rig.rotation.x = py * .08;
+      rig.rotation.y = px * .16 * (1 - pull);
+      rig.rotation.x = py * .08 * (1 - pull);
       treeL.rotation.z = Math.sin(t * .6) * .007 + Math.sin(t * 7) * gust * .018;
       treeR.rotation.z = Math.sin(t * .5 + 1) * .008 + Math.sin(t * 6.3 + 1) * gust * .02;
       // the branches part like curtains
@@ -886,31 +907,30 @@ async function start() {
       treeR.position.x = treeR.userData.x + part * 7;
     }
     if (inGallery) {
-      let best = 0, bestV = 9;
       stops.forEach((s, i) => {
-        const local = pos - i;
-        const on = !!s.body && local > -.16 && local < 1.16;
+        const on = !!s.body;
         s.pivot.visible = on;
-        const dist = Math.abs(local - .5);
-        if (dist < bestV) { bestV = dist; best = i; }
-        if (!on) return;
-        const en = i === 0 ? out : silk(clamp((local + .16) / .32));
-        const lv = i === STOPS.length - 1 ? 0 : silk(clamp((local - .84) / .32));
-        const turnT = silk(clamp((local - .06) / .46));
-        // Pieces ride a wide carousel: in from one side, round and away out of the other.
-        const th = (1 - en) * 1.3 - lv * 1.3;
-        s.body.rotation.y = turnT * Math.PI + th * 1.15 + (calm ? Math.PI : 0) + extra + Math.sin(t * .5) * .05 + px * .5;
-        s.body.rotation.x = py * .18 + tiltX;
-        s.body.position.set(Math.sin(th) * viewW * .82, .42 + Math.sin(t * .8 + i) * .06, (Math.cos(th) - 1) * 15);
-        s.rise = en * (1 - lv);
+        const local = pos - i;
+        const last = i === STOPS.length - 1;
+        s.rise = calm ? (Math.floor(pos) === i ? 1 : 0)
+          : silk(clamp((local - .14) / .22)) * (last ? 1 : 1 - silk(clamp((local - .8) / .16)));
         s.tilt.scale.setScalar(portrait ? clamp(viewW / 15.5, .5, 1) : 1);
+        if (!on) return;
+        s.born = Math.min(1, s.born + dt * 2.4);
+        const a = (i + 1) * STEP + phi;
+        const join = calm ? 1 : silk(clamp((p - .44 - i * .06) / .38));
+        const focus = clamp(1 - Math.abs(idx - (i + 1)));
+        const turnT = calm ? 1 : silk(clamp((local - .2) / .42));
+        s.body.visible = join > .002;
+        s.body.scale.setScalar(Math.max(.001, join * silk(s.born)));
+        s.body.position.set(Math.sin(a) * RC, .42 + Math.sin(t * .8 + i) * .06 + (1 - join) * 11, (Math.cos(a) - 1) * RC - (1 - join) * 26);
+        s.body.rotation.set((py * .18 + tiltX) * focus, a + turnT * Math.PI + (1 - join) * -2.8 + (extra + Math.sin(t * .5) * .05 + px * .5) * focus, 0);
       });
-      tmp.copy(stops[best].tint);
-      tint.lerp(tmp, damp(4, dt));
+      if (idx > .5) { tmp.copy(stops[clamp(Math.round(idx) - 1, 0, STOPS.length - 1)].tint); tint.lerp(tmp, damp(4, dt)); }
     }
-    if (!inGallery) tint.lerp(heroTint, damp(4, dt));
+    if (idx <= .5) tint.lerp(heroTint, damp(4, dt));
     halo.material.color.copy(tint);
-    halo.scale.setScalar((portrait ? .72 : 1) * (1 + dive * .35 * (1 - out)));
+    halo.scale.setScalar((portrait ? .72 : 1) * (1 + dive * .35 * (1 - pull) + wide * 1.6));
     rimB.color.copy(tint);
     rimShared.rimColor.value.copy(tint);
 
@@ -920,36 +940,37 @@ async function start() {
     nebula.rotation.z = t * .012;
     far.rotation.y = t * .004; near.rotation.y = -t * .009;
 
-    // Camera: a slow arc round the turning hoodie, easing in only as far as the print stays crisp,
-    // then back out to the showcase framing. Everything is one blend, so nothing can jump.
+    // Camera: a slow arc round the turning hoodie, then back and up until the whole carousel is in
+    // shot, then in to each piece. It never goes nearer than the photos stay sharp.
     const zHero = fitD * Math.pow(portrait ? .8 : .74, dive);
-    const z = lerp(zHero, fitD * (portrait ? 1.02 : .98), out);
-    scene.fog.near = z + 1.5; scene.fog.far = z + 24;
+    const zNear = lerp(zHero, fitD * (portrait ? 1.02 : .98), pull);
+    const z = lerp(zNear, portrait ? fitD * 2 : 38, wide);
+    scene.fog.near = z + 1.5 + wide * 10; scene.fog.far = z + 15 + wide * 52;
     {
-      const arc = Math.sin(Math.PI * dive) * .24, still = 1 - dive;
-      const roll = Math.sin(Math.PI * dive) * .03 * (1 - out);
+      const arc = Math.sin(Math.PI * dive) * .24 * (1 - pull), still = 1 - dive;
+      const roll = Math.sin(Math.PI * dive) * .03 * (1 - pull);
       camera.up.set(Math.sin(roll), Math.cos(roll), 0);
       camera.position.set(
-        lerp(Math.sin(arc) * z + px * 1.1 * still, px * .9, out),
-        lerp(lerp(.5, .2, dive) - py * .6 * still, .3 - py * .5, out),
-        lerp(Math.cos(arc) * z, z, out),
+        lerp(Math.sin(arc) * z + px * 1.1 * still, px * .9, pull),
+        lerp(lerp(.5, .2, dive) - py * .6 * still, .3 - py * .5, pull) + wide * 9,
+        lerp(Math.cos(arc) * z, z, pull),
       );
       const lookHero = lerp(portrait ? -.2 : -.62, .1, dive);
-      camera.lookAt(0, lerp(lookHero, portrait ? -.2 : -.5, out), 0);
+      camera.lookAt(0, lerp(lookHero, portrait ? -.2 : -.5, pull) - wide * 1.2, -RC * .55 * wide);
     }
 
     camera.updateMatrixWorld();
     if (!calm) {
-      if (inGallery) { for (const s of stops) if (s.pivot.visible) reactLetters(s.letters, dt, pw, ph, 0, s.rise); }
+      if (inGallery) for (const s of stops) reactLetters(s.letters, dt, pw, ph, 0, s.rise);
       if (dive < .95) reactLetters(liveLetters(), dt, pw, ph, portrait ? 0 : dive);   // stacked lines leave as one block
     }
 
     // petals: drift and tumble, swerve round the pointer, and on the dive stream past the lens
-    const wind = .34 + px * 1.1, rush = dive * (1 - out) * 2.5;
+    const wind = .34 + px * 1.1, rush = dive * (1 - pull) * 2.5;
     const half = viewW * .72;
     if (pointerOn) aim(mx, my);
     const fade = Math.exp(-dt * 1.9), PUSH = 2.5;
-    const whirl = dive * (1 - out) * .5 * dt;        // the petals turn gently with the hoodie
+    const whirl = (dive * (1 - pull) * .5 + wide * 1.1) * dt;   // the petals turn with the carousel
     for (let i = 0; i < N_live; i++) {
       const q = P[i];
       if (!calm) {
@@ -980,31 +1001,31 @@ async function start() {
       petals.setMatrixAt(i, px0.matrix);
     }
     petals.instanceMatrix.needsUpdate = true;
-    petals.count = Math.round(N_live * lerp(1, .4, out));
+    petals.count = Math.round(N_live * lerp(1, .55, pull));
 
     set(foot, 'opacity', (1 - smooth(.01, .1, p)).toFixed(3));
     set(foot, 'visibility', p > .1 ? 'hidden' : 'visible');
-    const overlay = calm ? 1 : smooth(.955, 1, p);   // only once its section has stopped moving
+    const overlay = calm ? 1 : smooth(.2, .4, pos);
     set(turnPin, 'opacity', overlay.toFixed(3));
     set(turnPin, 'visibility', overlay > 0 ? 'visible' : 'hidden');
 
     if (finish) finish.uniforms.t.value = t % 10;
     draw(dt);
 
-    // keep it smooth on weak GPUs: one step down, once
+    // keep it smooth on weak GPUs. The step down waits until the page is still, because reallocating
+    // the canvas mid-scroll drops frames at the worst moment.
     if (!tuned && e >= 1 && now - begin > 900) {
       samples++; if (dt > .024) slow++;
-      if (samples === 60) {
-        if (slow > 24) {
-          tier++;
-          dpr = Math.min(devicePixelRatio || 1, TIERS[Math.min(tier, TIERS.length - 1)]);
-          key.castShadow = false;
-          if (bloom) bloom.enabled = false;
-          if (tier >= 2) { N_live = Math.round(N * .55); }
-          resize();
-        }
+      if (samples === 60) { if (slow > 24) stepDown = true; samples = slow = 0; }
+      if (stepDown && Math.abs(rawP - sp) + Math.abs(rawPos - sPos) < .0005) {
+        stepDown = false;
+        tier++;
+        dpr = Math.min(devicePixelRatio || 1, TIERS[Math.min(tier, TIERS.length - 1)]);
+        key.castShadow = false;
+        if (bloom) bloom.enabled = false;
+        if (tier >= 2) { N_live = Math.round(N * .55); }
+        resize();
         if (tier >= TIERS.length) tuned = true;
-        samples = slow = 0;
       }
     }
     if (!calm) requestAnimationFrame(frame);
@@ -1046,7 +1067,7 @@ async function start() {
   });
   if (calm) {
     addEventListener('resize', () => requestAnimationFrame(frame));
-    addEventListener('scroll', () => requestAnimationFrame(frame), { passive: true });
+    (document.documentElement.classList.contains('inner') ? document.body : window).addEventListener('scroll', () => requestAnimationFrame(frame), { passive: true });
   }
 }
 

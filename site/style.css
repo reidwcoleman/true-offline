@@ -22,7 +22,6 @@
 
 *{box-sizing:border-box;margin:0}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;background:var(--ink);overflow-anchor:none;overscroll-behavior-x:none}
-html.lenis{scroll-behavior:auto}
 body{font-family:Archivo,system-ui,sans-serif;font-size:16px;line-height:1.5;color:var(--white);background:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:clip}
 body.locked{overflow:hidden}
 img{display:block;max-width:100%;height:auto}
@@ -409,10 +408,15 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
   .foot-wm{font-size:10vw}
 }
 
+/* touch screens: the page scrolls inside itself, so the address bar and rubber band never move it */
+html.inner{height:100%;overflow:hidden}
+html.inner body{height:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior:none;scroll-behavior:smooth}
+html.inner.gl .gl-wrap{height:100svh;margin-bottom:calc(-1 * max(100svh,620px))}
+
 /* touch screens: shorter journeys, no paint-heavy effects */
 @media (pointer:coarse){
   :root{--grain:linear-gradient(transparent,transparent)}
-  .gl .hero{height:210svh}
+  .gl .hero{height:250svh}
   .turn{height:calc(100svh * 4.4)}
   .gl-wrap::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(90% 70% at 50% 46%,transparent 55%,rgba(0,0,0,.55))}
   .tile-card{will-change:auto}

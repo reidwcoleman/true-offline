@@ -13,47 +13,21 @@
   const firstColour = p => (p.colours ? p.colours[0].key : '');
   const canMorph = !!document.startViewTransition && !calm;
 
+  /* Touch screens scroll the body (see the head of index.html); everything else scrolls the window. */
+  const inner = document.documentElement.classList.contains('inner');
+  const scroller = inner ? document.body : window;
+  const Y = () => (inner ? document.body.scrollTop : window.scrollY);
+
   /* One scroll loop for everything scrubbed, so a frame only ever pays for one layout read pass. */
   const scrubs = [];
   let ticking = false;
   const runScrubs = () => { ticking = false; for (const f of scrubs) f(); };
-  addEventListener('scroll', () => {
+  scroller.addEventListener('scroll', () => {
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(runScrubs);
   }, { passive: true });
   addEventListener('resize', runScrubs);
-
-  /* Wheel and trackpad scrolling glide. Touch keeps the phone's own scrolling, which is already smooth. */
-  let lenis = null;
-  const smooth = () => {
-    lenis = new window.Lenis({ lerp: .115, wheelMultiplier: .95, prevent: n => !!n.closest('[data-sheet]') });
-    const run = t => { lenis.raf(t); requestAnimationFrame(run); };
-    requestAnimationFrame(run);
-    // Section links glide too. Product links (#/slug) are routes, not places on the page.
-    document.addEventListener('click', e => {
-      const a = e.target.closest('a[href^="#"]');
-      const id = a && a.getAttribute('href').slice(1);
-      if (!id || id[0] === '/') return;
-      const el = document.getElementById(id);
-      if (!el) return;
-      e.preventDefault();
-      lenis.scrollTo(el, { duration: 1.3 });
-    });
-  };
-  // Only a notched mouse wheel needs help. Trackpads and touch already glide and stop dead under the
-  // finger, and easing on top of that makes the page drift after you stop, so they stay native.
-  if (!calm && fine) {
-    const first = e => {
-      removeEventListener('wheel', first);
-      if (e.ctrlKey || e.deltaX || Math.abs(e.deltaY) < 50 || !Number.isInteger(e.deltaY)) return;
-      const js = document.createElement('script');
-      js.src = 'lenis.js?v=' + document.documentElement.dataset.v;
-      js.onload = smooth;
-      document.head.append(js);
-    };
-    addEventListener('wheel', first, { passive: true });
-  }
 
   /* A garment "turning": cross-dissolve the two views while the width dips, so it reads as a
      rotation without ever showing a paper-thin edge. t: 0 = front, 1 = back. */
@@ -134,7 +108,7 @@
     let px = 0, py = 0, tx = 0, ty = 0, raf = 0;
     const paint = () => {
       px += (tx - px) * .08; py += (ty - py) * .08;
-      const s = scrollY;
+      const s = Y();
       piece.style.transform = `translate3d(${px}px,${py - s * .14}px,0)`;
       wm.style.transform = `translate3d(${px * -.25}px,${s * .1 + py * -.25}px,0)`;
       raf = Math.abs(tx - px) + Math.abs(ty - py) > .1 ? requestAnimationFrame(paint) : 0;
@@ -148,7 +122,7 @@
         kick();
       }, { passive: true });
     }
-    scrubs.push(() => { if (scrollY < innerHeight * 1.2) kick(); });
+    scrubs.push(() => { if (Y() < innerHeight * 1.2) kick(); });
   }
 
   /* ---------- the back is the point ---------- */
@@ -272,8 +246,8 @@
       number();
       // A shorter grid must not leave you stranded further down the page.
       const bar = $('[data-line-bar]');
-      const top = grid.getBoundingClientRect().top + scrollY - bar.offsetHeight - (document.documentElement.classList.contains('bar-up') ? 82 : 24);
-      if (scrollY > top) { if (lenis) lenis.scrollTo(top, { immediate: true, force: true }); else scrollTo({ top, behavior: 'instant' }); }
+      const top = grid.getBoundingClientRect().top + Y() - bar.offsetHeight - (document.documentElement.classList.contains('bar-up') ? 82 : 24);
+      if (Y() > top) scroller.scrollTo({ top, behavior: 'instant' });
     };
     const change = () => {
       if (!canMorph) return apply();
@@ -497,7 +471,6 @@
     const reveal = () => {
       el.hidden = false;
       document.body.classList.add('locked');
-      if (lenis) lenis.stop();
       $('.sheet-info').scrollTop = 0; el.scrollTop = 0;
       $('[data-close]').focus({ preventScroll: true });
     };
@@ -527,7 +500,6 @@
     function hide() {
       el.hidden = true; cur = null;
       document.body.classList.remove('locked');
-      if (lenis) lenis.start();
       document.title = 'True Offline';
       if (opener) opener.focus({ preventScroll: true });
     }
@@ -606,9 +578,9 @@
     $$('.shop,.facts').forEach(s => io.observe(s));
     // Tuck away while reading down the page, back on any scroll up.
     if (!fine) { document.documentElement.classList.add('bar-up'); return; }   // on touch it simply stays put
-    let y = scrollY;
+    let y = Y();
     addEventListener('scroll', () => {
-      const n = scrollY;
+      const n = Y();
       if (Math.abs(n - y) < 28) return;
       const tuck = n > y && n > innerHeight * .5;
       bar.classList.toggle('tuck', tuck);

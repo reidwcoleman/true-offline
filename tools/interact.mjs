@@ -284,14 +284,14 @@ await ctx.close();
   await t.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 25000 });
   const cdp = await tc.newCDPSession(t);
   const swipe = (x, y, dx, dy, speed = 900) => cdp.send('Input.synthesizeScrollGesture', { x, y, xDistance: dx, yDistance: dy, speed, gestureSourceType: 'touch' });
-  const watch = () => t.evaluate(() => { window.__ys = []; const f = () => { window.__ys.push(scrollY); window.__on && requestAnimationFrame(f); }; window.__on = true; f(); });
+  const watch = () => t.evaluate(() => { window.__ys = []; const f = () => { window.__ys.push(document.body.scrollTop); window.__on && requestAnimationFrame(f); }; window.__on = true; f(); });
   const stop = () => t.evaluate(() => { window.__on = false; const y = window.__ys; let back = 0; for (let i = 1; i < y.length; i++) back = Math.max(back, y[i - 1] - y[i]); return { from: y[0], to: y[y.length - 1], back }; });
-  ok('touch: no tap effects, no smooth-scroll script on phones', await t.evaluate(() => !window.Lenis));
+  ok('touch: the page scrolls inside itself, so the address bar cannot move it', await t.evaluate(() => document.documentElement.classList.contains('inner') && getComputedStyle(document.documentElement).overflowY === 'hidden' && window.scrollY === 0 && document.body.scrollHeight > 4000));
   ok('touch: first screen starts on the poster', await t.evaluate(() => !!document.querySelector('.gl-poster')));
   await t.waitForTimeout(600);
   await swipe(195, 420, -170, 0, 700); await t.waitForTimeout(250);
   ok('touch: a sideways swipe spins the hoodie', (await t.evaluate(() => window.TO_hero.state().spun)) > .4);
-  ok('touch: a sideways swipe does not scroll', (await t.evaluate(() => scrollY)) === 0);
+  ok('touch: a sideways swipe does not scroll', (await t.evaluate(() => document.body.scrollTop)) === 0);
   const sp0 = await t.evaluate(() => window.TO_hero.state().spun);
   await t.waitForTimeout(3600);
   await watch();
@@ -314,13 +314,13 @@ await ctx.close();
   r = await stop();
   ok('touch: the whole page scrolls with no push-back', r.to > 4000 && r.back === 0, JSON.stringify(r));
   // shop tiles: vertical goes to the page, sideways shows the back, and a swipe is not a tap
-  await t.evaluate(() => { const y = document.querySelector('.grid').getBoundingClientRect().top + scrollY; scrollTo({ top: y + 700, behavior: 'instant' }); });
+  await t.evaluate(() => { const y = document.querySelector('.grid').getBoundingClientRect().top + document.body.scrollTop; document.body.scrollTo({ top: y + 700, behavior: 'instant' }); });
   await t.waitForTimeout(500);
   const box = await t.evaluate(() => { const l = [...document.querySelectorAll('.tile:not(.big) .tile-plate')].find(e => { const r = e.getBoundingClientRect(); return r.top > 90 && r.bottom < innerHeight - 20; }); l.closest('.tile').id = 'pick'; const r = l.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-  const y1 = await t.evaluate(() => scrollY);
+  const y1 = await t.evaluate(() => document.body.scrollTop);
   await swipe(box.x + 50, box.y, -110, 0, 700); await t.waitForTimeout(450);
   ok('touch: a sideways swipe on a piece shows its back', await t.evaluate(() => document.querySelector('#pick a').classList.contains('flip') && +getComputedStyle(document.querySelector('#pick .b')).opacity > .9));
-  ok('touch: swiping a piece does not open it or scroll', (await t.evaluate(() => scrollY)) === y1 && !(await t.isVisible('[data-sheet]')));
+  ok('touch: swiping a piece does not open it or scroll', (await t.evaluate(() => document.body.scrollTop)) === y1 && !(await t.isVisible('[data-sheet]')));
   await watch();
   await swipe(box.x, box.y, 0, -300); await t.waitForTimeout(250);
   r = await stop();
@@ -332,6 +332,24 @@ await ctx.close();
   await swipe(rb2.x, rb2.y, 0, -260); await t.waitForTimeout(300);
   r = await stop();
   ok('touch: page scrolls when the swipe starts on a reel', r.to - r.from > 150, JSON.stringify(r));
+  await tc.close();
+}
+
+// touch flick and stop: the page and the stage hold still once the finger is gone
+{
+  const tc = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const t = await tc.newPage();
+  await t.goto(URL, { waitUntil: 'load' });
+  await t.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 25000 });
+  await t.waitForTimeout(800);
+  const cdp = await tc.newCDPSession(t);
+  await t.evaluate(() => { window.__l = []; window.__on = true; const c = document.querySelector('canvas'); const f = () => { window.__l.push([document.body.scrollTop, c.getBoundingClientRect().top, window.scrollY]); window.__on && requestAnimationFrame(f); }; f(); });
+  for (const d of [-500, -300, -700, 260, -420]) {
+    await cdp.send('Input.synthesizeScrollGesture', { x: 195, y: 500, yDistance: d, speed: 2600, gestureSourceType: 'touch' });
+    await t.waitForTimeout(450);
+  }
+  const r = await t.evaluate(() => { window.__on = false; const l = window.__l; let flips = 0, dir = 0, stage = 0, win = 0; for (let i = 1; i < l.length; i++) { const d = l[i][0] - l[i - 1][0]; if (d && dir && Math.sign(d) !== dir && Math.abs(d) > 1) flips++; if (d) dir = Math.sign(d); stage = Math.max(stage, Math.abs(l[i][1])); win = Math.max(win, Math.abs(l[i][2])); } return { flips, stage, win, end: l[l.length - 1][0], n: l.length }; });
+  ok('touch: flicks only reverse when the finger does, the stage never shifts', r.flips === 2 && r.stage <= 1 && r.win === 0 && r.end > 500, JSON.stringify(r));
   await tc.close();
 }
 
