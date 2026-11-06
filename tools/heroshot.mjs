@@ -33,8 +33,9 @@ async function tour(p, n) {
   await go(m.turn + m.turnH * .03); await shot(p, `${n}-t0`);
   await go(m.turn + m.turnH * .15, 700); await shot(p, `${n}-t1`);
   await go(m.turn + m.turnH * .25, 700); await shot(p, `${n}-tswap`);
-  await go(m.turn + m.turnH * .4, 700); await shot(p, `${n}-t2`);
-  await go(m.turn + m.turnH * .9, 700); await shot(p, `${n}-t3`);
+  await go(m.turn + m.turnH * .4, 1400); await shot(p, `${n}-t2`);
+  await go(m.turn + m.turnH * .64, 1400); await shot(p, `${n}-t25`);
+  await go(m.turn + m.turnH * .9, 1400); await shot(p, `${n}-t3`);
   await go(m.shop + 2, 1400); await shot(p, `${n}-line`);
   await go(m.shop + 620, 1300); await shot(p, `${n}-line2`);
   await go(m.shop + 1500, 1300); await shot(p, `${n}-line3`);

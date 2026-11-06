@@ -124,7 +124,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .cta-arrow{transition:transform .3s var(--out)}
 .cta:hover .cta-arrow{transform:translateY(3px)}
 
-/* the back is the point */
+/* the showcase */
 .turn{position:relative;height:calc(100svh * 5.4);background:var(--ink)}
 .turn-pin{position:sticky;top:0;height:100svh;min-height:600px;overflow:hidden;display:flex;justify-content:space-between;padding:84px var(--gut) 32px;gap:var(--gut);background:var(--grain),var(--ink)}
 .turn-word{position:absolute;inset:0;z-index:0;pointer-events:none}
@@ -187,10 +187,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-flow:dense;gap:clamp(36px,4vw,64px) clamp(10px,1.1vw,16px)}
 .tile a{display:flex;flex-direction:column;height:100%;text-decoration:none;color:inherit}
-.tile-plate{position:relative;aspect-ratio:4/5;background:var(--paper-2);overflow:hidden;isolation:isolate}
+.tile-plate{position:relative;aspect-ratio:4/5;background:radial-gradient(62% 52% at 50% 50%,var(--glow,#ffbcd2),transparent 100%),var(--paper-2);overflow:hidden;isolation:isolate}
 .tile-card{position:absolute;inset:0;z-index:1;will-change:transform}
-.tile-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:8%;filter:drop-shadow(0 10px 12px rgba(8,8,11,.13));pointer-events:none;user-select:none}
+.tile-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:6%;filter:drop-shadow(0 22px 20px rgba(8,8,11,.34)) drop-shadow(0 4px 5px rgba(8,8,11,.22));transition:transform .55s var(--out);pointer-events:none;user-select:none}
 .tile-card .b{opacity:0}
+@media (hover:hover){.tile a:hover .tile-card img{transform:scale(1.06) translateY(-1.5%)}}
 .tile-dots{display:none}
 .tile-glare{position:absolute;inset:0;opacity:0;pointer-events:none;mix-blend-mode:soft-light}
 .tile-meta{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding-top:12px;font-size:14px;line-height:1.3;font-weight:500}

@@ -93,7 +93,7 @@ function glyph(ch, cap) {
   const shapes = svg.paths.flatMap(p => SVGLoader.createShapes(p));
   const k = cap / 1.2;
   const g = new THREE.ExtrudeGeometry(shapes, {
-    depth: .15 * k / s, curveSegments: LITE ? 6 : 14, bevelEnabled: true, bevelThickness: .04 * k / s, bevelSize: .03 * k / s, bevelSegments: LITE ? 2 : 4,
+    depth: .26 * k / s, curveSegments: LITE ? 6 : 14, bevelEnabled: true, bevelThickness: .05 * k / s, bevelSize: .035 * k / s, bevelSegments: LITE ? 2 : 4,
   });
   g.scale(s, s, s);
   g.translate(-GL.glyphs[ch].adv * s / 2, 0, 0);
@@ -194,6 +194,94 @@ function petalMaterial(map) {
     map, alphaTest: .45, alphaToCoverage: true, side: THREE.DoubleSide, roughness: .6, metalness: 0,
     emissive: 0xff8fb0, emissiveMap: map, emissiveIntensity: .34, envMapIntensity: .25,
   });
+}
+/* What falls for each showcase piece. The instance colour tints the glow as well as the surface. */
+function glowing(m) {
+  m.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor;');
+  };
+  return m;
+}
+// the four-point stars round the Globe print
+function sparkGeometry() {
+  const s = new THREE.Shape();
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2, r = i % 2 ? .05 : .22;
+    i ? s.lineTo(Math.sin(a) * r, Math.cos(a) * r) : s.moveTo(0, r);
+  }
+  s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: .03, bevelEnabled: true, bevelThickness: .018, bevelSize: .014, bevelSegments: 1 });
+  g.center();
+  return g;
+}
+// a licked flame from the Dreamer print
+function flameGeometry() {
+  const s = new THREE.Shape();
+  s.moveTo(0, -.15);
+  s.bezierCurveTo(.13, -.13, .13, .02, .05, .07);
+  s.bezierCurveTo(.01, .11, .05, .19, .1, .24);
+  s.bezierCurveTo(-.03, .19, -.13, .07, -.1, -.03);
+  s.bezierCurveTo(-.09, -.09, -.05, -.14, 0, -.15);
+  return new THREE.ShapeGeometry(s, 5);
+}
+// a rooster's feather
+function featherGeometry() {
+  const g = new THREE.PlaneGeometry(.2, .62, 2, 6);
+  const P = g.attributes.position;
+  for (let k = 0; k < P.count; k++) {
+    const y = P.getY(k) / .31;
+    P.setX(k, P.getX(k) + y * y * .05);
+    P.setZ(k, -y * y * .05 + Math.abs(P.getX(k)) * .16);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+function featherTexture() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 384;
+  const x = c.getContext('2d');
+  x.beginPath();
+  x.moveTo(64, 372);
+  x.bezierCurveTo(30, 300, 8, 170, 62, 10);
+  x.bezierCurveTo(120, 170, 100, 300, 64, 372);
+  x.closePath();
+  const g = x.createLinearGradient(0, 0, 0, 384);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(.6, '#f2f2f2'); g.addColorStop(1, '#b8b8b8');
+  x.fillStyle = g; x.fill();
+  // nicks in the vane, then the barbs and the quill
+  x.globalCompositeOperation = 'destination-out';
+  for (const [y, side] of [[120, 1], [205, -1], [270, 1]]) {
+    x.beginPath(); x.moveTo(64 + side * 70, y - 12); x.lineTo(64 + side * 14, y + 14); x.lineTo(64 + side * 70, y + 4); x.closePath(); x.fill();
+  }
+  x.globalCompositeOperation = 'source-atop';
+  x.strokeStyle = 'rgba(0,0,0,.14)'; x.lineWidth = 1.5;
+  for (let y = 30; y < 350; y += 11) for (const d of [-1, 1]) { x.beginPath(); x.moveTo(64, y + 16); x.lineTo(64 + d * 60, y - 16); x.stroke(); }
+  x.globalCompositeOperation = 'source-over';
+  x.strokeStyle = '#fff7ee'; x.lineWidth = 3.5;
+  x.beginPath(); x.moveTo(64, 382); x.lineTo(63, 24); x.stroke();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+/* Soft light rays that fan out behind the piece in focus. */
+function raysTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 1024;
+  const x = c.getContext('2d'), r = rng(11);
+  x.translate(512, 512);
+  x.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 64; i++) {
+    const a = r() * Math.PI * 2, w = .012 + r() * .05, len = 300 + r() * 210, peak = .02 + r() * .035;
+    const g = x.createRadialGradient(0, 0, 60, 0, 0, len);
+    g.addColorStop(0, `rgba(255,255,255,${peak})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g;
+    // stacked narrower and narrower, so each beam has soft edges rather than a hard wedge
+    for (let k = 1; k <= 5; k++) {
+      const h = w * k / 5;
+      x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.cos(a - h) * len, Math.sin(a - h) * len); x.lineTo(Math.cos(a + h) * len, Math.sin(a + h) * len); x.closePath(); x.fill();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 function flowerGeometry() {
   const parts = [];
@@ -331,7 +419,7 @@ async function start() {
         .replace('#include <map_fragment>', 'vec4 sampledDiffuseColor = texture2D( map, vMapUv, -1.1 );\ndiffuseColor *= sampledDiffuseColor;')
         .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace('texture2D( normalMap, vNormalMapUv )', 'texture2D( normalMap, vNormalMapUv, -.6 )'))
         .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance *= sampledDiffuseColor.rgb;')
-        .replace('#include <opaque_fragment>', 'float grey = dot( outgoingLight, vec3( .2126, .7152, .0722 ) );\nvec3 photo = sampledDiffuseColor.rgb / max( dot( sampledDiffuseColor.rgb, vec3( .2126, .7152, .0722 ) ), .02 );\nfloat dyed = smoothstep( .1, .4, max( photo.r, max( photo.g, photo.b ) ) - min( photo.r, min( photo.g, photo.b ) ) );\noutgoingLight = mix( outgoingLight, photo * grey, .8 * dyed );\noutgoingLight = max( mix( vec3( grey ), outgoingLight, 1.4 ), 0. );\noutgoingLight *= mix( vec3( 1. ), rimColor / max( max( rimColor.r, max( rimColor.g, rimColor.b ) ), .001 ), .1 );\nfloat edge = pow( 1. - saturate( dot( normalize( normal ), normalize( vViewPosition ) ) ), 3.4 );\noutgoingLight += rimColor * edge * .42;\n#include <opaque_fragment>');
+        .replace('#include <opaque_fragment>', 'float grey = dot( outgoingLight, vec3( .2126, .7152, .0722 ) );\nvec3 photo = sampledDiffuseColor.rgb / max( dot( sampledDiffuseColor.rgb, vec3( .2126, .7152, .0722 ) ), .02 );\nfloat dyed = smoothstep( .1, .4, max( photo.r, max( photo.g, photo.b ) ) - min( photo.r, min( photo.g, photo.b ) ) );\noutgoingLight = mix( outgoingLight, photo * grey, .8 * dyed );\noutgoingLight = max( mix( vec3( grey ), outgoingLight, 1.4 ), 0. );\noutgoingLight *= mix( vec3( 1. ), rimColor / max( max( rimColor.r, max( rimColor.g, rimColor.b ) ), .001 ), .1 );\nfloat edge = pow( 1. - saturate( dot( normalize( normal ), normalize( vViewPosition ) ) ), 2.6 );\noutgoingLight = pow( outgoingLight, vec3( 1.14 ) ) * 1.28;\noutgoingLight += rimColor * edge * .85;\n#include <opaque_fragment>');
     };
     return m;
   };
@@ -380,9 +468,10 @@ async function start() {
   /* chrome wordmark ring */
   // Letter faces stay bright and the walls stay dark, so the name reads at a glance over any garment.
   const chrome = [
-    new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: .78, roughness: .17, emissive: 0xd4d7f4, emissiveIntensity: .5 }),
-    new THREE.MeshStandardMaterial({ color: 0x4a4f86, metalness: 1, roughness: .28 }),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: .78, roughness: .17, emissive: 0xd4d7f4, emissiveIntensity: .62 }),
+    new THREE.MeshStandardMaterial({ color: 0x4a4f86, metalness: .9, roughness: .28, emissive: 0xff9fbe, emissiveIntensity: .22 }),
   ];
+  const chromeGlow = new THREE.Color(0xd4d7f4);
   const chromeLine = new THREE.MeshStandardMaterial({ color: 0xf4f5fb, metalness: 1, roughness: .08 });
   const FLAT = .55;
   const R = 9.1;
@@ -421,6 +510,10 @@ async function start() {
   ringTilt.rotation.set(TILT, 0, -.05);
   ringTilt.position.y = DROP;
   rig.add(ringTilt);
+  // a soft bloom of the piece's colour behind the name, so it lifts off the hoodie on every screen
+  const nameGlow = glow([[0, 'rgba(255,255,255,.62)'], [.5, 'rgba(255,255,255,.18)'], [1, 'rgba(0,0,0,0)']], 1, [0, .5, 3.4]);
+  nameGlow.scale.set(26, 5.4, 1);
+  ringTilt.add(nameGlow);
 
   /* the shooting star and its two echoes: white, cobalt, violet, as on the jorts */
   const orbit = new THREE.Group();
@@ -492,11 +585,30 @@ async function start() {
   const petals = new THREE.InstancedMesh(petalGeo, bloomMat, N);
   petals.frustumCulled = false;
   scene.add(petals);
+  // Blossom petals on the first screen and for Pagoda, then each piece gets its own fall. Every particle
+  // keeps its one slot in all four meshes, and only the mesh it currently belongs to draws it.
+  const fallMesh = (geo, mat) => {
+    const m = new THREE.InstancedMesh(geo, mat, N);
+    m.frustumCulled = false; m.visible = false;
+    scene.add(m);
+    return m;
+  };
+  const featherMap = featherTexture();
+  const FALLS = [
+    { mesh: petals, fall: 1, sway: 1, spin: 1, size: 1 },
+    { mesh: fallMesh(sparkGeometry(), glowing(new THREE.MeshStandardMaterial({ metalness: .35, roughness: .3, emissive: 0xffffff, emissiveIntensity: .8, fog: false }))), fall: .75, sway: .35, spin: .5, size: 1.1, cols: [0x2f7dff, 0x6fb0ff, 0xff4fa3, 0xbfe0ff] },
+    { mesh: fallMesh(featherGeometry(), glowing(new THREE.MeshStandardMaterial({ map: featherMap, alphaTest: .4, alphaToCoverage: true, side: THREE.DoubleSide, roughness: .7, emissive: 0xffffff, emissiveMap: featherMap, emissiveIntensity: .4, fog: false }))), fall: .62, sway: 2, spin: .5, size: 1.5, cols: [0xff3a14, 0xff7a14, 0xffb020, 0xd81f10] },
+    { mesh: fallMesh(flameGeometry(), glowing(new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: .5, emissive: 0xffffff, emissiveIntensity: 1.1, fog: false }))), fall: 1.7, sway: .5, spin: .3, size: .95, cols: [0xffe6c4, 0xffc27a, 0xff9650, 0xfff3e2] },
+  ];
+  const NONE = new THREE.Matrix4().makeScale(0, 0, 0);
+  let fallMask = 1, fallNow = 0;
   const pr = rng(5), P = [];
   const px0 = new THREE.Object3D(), pcol = new THREE.Color();
   for (let i = 0; i < N; i++) {
     P.push({ x: (pr() - .5) * 30, y: (pr() - .5) * 22, z: lerp(-11, 13, pr()), fall: .55 + pr() * .75, ph: pr() * 6.28, f: .5 + pr() * .9, a: .4 + pr() * .9, rx: pr() * 6.28, ry: pr() * 6.28, sx: (pr() - .5) * 2.2, sy: (pr() - .5) * 2.6, s: .7 + pr() * .9, vx: 0, vy: 0, vz: 0 });
     petals.setColorAt(i, pcol.setHSL(.955, .5 + pr() * .4, .82 + pr() * .14));
+    P[i].k = 0; P[i].g = 1;
+    for (const f of FALLS) if (f.cols) f.mesh.setColorAt(i, pcol.set(f.cols[i % f.cols.length]));
   }
 
   /* light on the fabric */
@@ -526,7 +638,7 @@ async function start() {
 
   /* featured hoodies, one per stop as you scroll */
   const STOPS = [
-    ['pagoda', 'PAGODA', 0xff5f96], ['globe', 'GLOBE', 0xe6405a], ['rooster', 'ROOSTER', 0xff6a2a], ['dreamer', 'DREAMER', 0xe9d3b0],
+    ['pagoda', 'PAGODA', 0xff5f96, 0xff2f86], ['globe', 'GLOBE', 0xe6405a, 0x1f78ff], ['rooster', 'ROOSTER', 0xff6a2a, 0xff6a00], ['dreamer', 'DREAMER', 0xe9d3b0, 0xffc873],
   ];
   const gallery = new THREE.Group();
   gallery.visible = false;
@@ -536,17 +648,36 @@ async function start() {
   const ringLine = new THREE.Mesh(new THREE.TorusGeometry(1, .0016, 8, 200), chromeLine);
   ringLine.rotation.x = Math.PI / 2;
   gallery.add(ringLine);
-  const stops = STOPS.map(([name, word, tint]) => {
+  const wordMats = hex => {
+    const c = new THREE.Color(hex);
+    return [
+      new THREE.MeshStandardMaterial({ color: c.clone().lerp(new THREE.Color(0xffffff), .1), metalness: .5, roughness: .22, emissive: c, emissiveIntensity: .42 }),
+      new THREE.MeshStandardMaterial({ color: c.clone().multiplyScalar(.3), metalness: .85, roughness: .3, emissive: c, emissiveIntensity: .2 }),
+    ];
+  };
+  const wordGlowMap = glowTexture([[0, 'rgba(255,255,255,.7)'], [.5, 'rgba(255,255,255,.2)'], [1, 'rgba(0,0,0,0)']]);
+  const rays = new THREE.Mesh(new THREE.PlaneGeometry(36, 36), new THREE.MeshBasicMaterial({
+    map: raysTexture(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false, opacity: 0,
+  }));
+  rays.position.set(0, .6, -5.5);
+  rays.visible = false;
+  scene.add(rays);
+  const stops = STOPS.map(([name, word, tint, ink]) => {
     const pivot = new THREE.Group();
     pivot.visible = false;
     const wordRing = new THREE.Group();
-    wordRing.add(arc(word, { R: 8, cap: 1.04, mat: chrome, lean: .1, flat: FLAT }));
+    wordRing.add(arc(word, { R: 8, cap: 1.26, mat: wordMats(ink), lean: .1, flat: FLAT }));
+    const wordGlow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({
+      map: wordGlowMap, color: ink, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false, opacity: 0,
+    }));
+    wordGlow.scale.set(19, 5.2, 1); wordGlow.position.set(0, .55, 3.3);
+    wordRing.add(wordGlow);
     const tilt = new THREE.Group();
-    tilt.rotation.set(TILT, 0, 0); tilt.position.y = -3.75;
+    tilt.rotation.set(TILT, 0, 0); tilt.position.y = -3.95;
     tilt.add(wordRing);
     pivot.add(tilt);
     gallery.add(pivot);
-    return { name, tint: new THREE.Color(tint), pivot, wordRing, tilt, body: null, born: 0, rise: 0 };
+    return { name, tint: new THREE.Color(tint), pivot, wordRing, wordGlow, tilt, body: null, born: 0, rise: 0 };
   });
   const loadStops = async () => {
     for (const s of stops) {
@@ -917,7 +1048,8 @@ async function start() {
         const last = i === STOPS.length - 1;
         s.rise = calm ? (Math.floor(pos) === i ? 1 : 0)
           : silk(clamp((local - .14) / .22)) * (last ? 1 : 1 - silk(clamp((local - .8) / .16)));
-        s.tilt.scale.setScalar(portrait ? clamp(viewW / 15.5, .5, 1) : 1);
+        s.tilt.scale.setScalar(portrait ? clamp(viewW / 18, .45, 1) : 1);
+        s.wordGlow.material.opacity = s.rise * .34;
         if (!on) return;
         s.born = Math.min(1, s.born + dt * 2.4);
         const a = (i + 1) * STEP + phi;
@@ -925,7 +1057,7 @@ async function start() {
         const focus = clamp(1 - Math.abs(idx - (i + 1)));
         const turnT = calm ? 1 : silk(clamp((local - .2) / .42));
         s.body.visible = join > .002;
-        s.body.scale.setScalar(Math.max(.001, join * silk(s.born)));
+        s.body.scale.setScalar(Math.max(.001, join * silk(s.born) * (1 + focus * .05)));
         s.body.position.set(Math.sin(a) * RC, .42 + Math.sin(t * .8 + i) * .06 + (1 - join) * 11, (Math.cos(a) - 1) * RC - (1 - join) * 26);
         s.body.rotation.set((py * .18 + tiltX) * focus, a + turnT * Math.PI + (1 - join) * -2.8 + (extra + Math.sin(t * .5) * .05 + px * .5) * focus, 0);
       });
@@ -936,6 +1068,17 @@ async function start() {
     halo.scale.setScalar((portrait ? .72 : 1) * (1 + dive * .35 * (1 - pull) + wide * 1.6));
     rimB.color.copy(tint);
     rimShared.rimColor.value.copy(tint);
+    chrome[0].emissive.copy(chromeGlow).lerp(tint, .4);
+    chrome[1].emissive.copy(tint);
+    nameGlow.material.color.copy(tint);
+    nameGlow.material.opacity = .16 * (1 - dive);
+    nameGlow.visible = dive < 1;
+    const beam = (calm ? 1 : clamp(1 - wide * 3.4)) * clamp(idx * 2 - .6) * pull;
+    rays.visible = beam > .01;
+    rays.material.opacity = beam * .62 * (1.15 - (tint.r + tint.g + tint.b) * .22);   // pale pieces glow brighter, so they get less
+    rays.material.color.copy(tint);
+    rays.rotation.z = t * .07 + phi * .5;
+    rays.scale.setScalar(portrait ? .62 : 1);
 
     // chrome highlights travel: the studio turns slowly around the letters
     scene.environmentRotation.y = t * .22 + px * .7;
@@ -974,8 +1117,18 @@ async function start() {
     if (pointerOn) aim(mx, my);
     const fade = Math.exp(-dt * 1.9), PUSH = 2.5;
     const whirl = (dive * (1 - pull) * .5 + wide * 1.1) * dt;   // the petals turn with the carousel
+    fallNow = idx < 1.5 ? 0 : idx < 2.5 ? 1 : idx < 3.5 ? 2 : 3;
+    const drawing = fallMask | 1 << fallNow;
+    let used = 0;
     for (let i = 0; i < N_live; i++) {
       const q = P[i];
+      // Each one shrinks away at its own pace and comes back as what the new piece drops.
+      if (q.k !== fallNow) {
+        q.g -= dt * (2.5 + q.a * 3.2);
+        if (calm || q.g <= 0) { q.k = fallNow; q.g = calm ? 1 : 0; }
+      } else if (q.g < 1) q.g = Math.min(1, q.g + dt * 2.6);
+      const fx = FALLS[q.k];
+      used |= 1 << q.k;
       if (!calm) {
         if (pointerOn) {
           const k = (q.z - camera.position.z) / rayDir.z;
@@ -988,8 +1141,8 @@ async function start() {
           }
         }
         q.vx *= fade; q.vy *= fade; q.vz *= fade;
-        q.y += (q.vy - q.fall) * dt;
-        q.x += (wind + q.vx + Math.sin(t * q.f + q.ph) * q.a) * dt;
+        q.y += (q.vy - q.fall * fx.fall) * dt;
+        q.x += (wind + q.vx + Math.sin(t * q.f + q.ph) * q.a * fx.sway) * dt;
         q.z += (Math.cos(t * q.f * .7 + q.ph) * .22 + rush + q.vz) * dt;
         if (whirl) { const ox = q.x, oy = q.y - .5; q.x -= oy * whirl; q.y += ox * whirl; }
         if (q.y < -11) { q.y = 11.5; q.x = (pr() - .5) * half * 2; q.vx = q.vy = 0; }
@@ -997,14 +1150,22 @@ async function start() {
         if (q.x > half) q.x = -half; else if (q.x < -half) q.x = half;
         if (q.z > z - 1.2) q.z = -11;
       }
-      px0.position.set(q.x, q.y, q.z);
-      px0.rotation.set(q.rx + t * q.sx, q.ry + t * q.sy, q.ph);
-      px0.scale.setScalar(q.s);
+      px0.position.set(q.x, q.y, q.k ? q.z * .42 - 4.4 : q.z);
+      const shine = q.k === 1 || q.k === 3 ? .78 + Math.sin(t * 3.4 + q.ph * 3) * .22 : 1;
+      if (q.k === 1) px0.rotation.set(Math.sin(t * .7 + q.ph) * .4, Math.sin(t * .5 + q.ph) * .7, q.ph + t * q.sx * .4);
+      else if (q.k === 2) px0.rotation.set(Math.sin(t * .6 + q.ph) * .55, Math.sin(t * .45 + q.ph * 2) * .75, q.ph + Math.sin(t * .4 + q.ph) * .9);
+      else if (q.k === 3) px0.rotation.set(0, Math.sin(t + q.ph) * .5, Math.sin(t * 1.3 + q.ph) * .3);
+      else px0.rotation.set(q.rx + t * q.sx * fx.spin, q.ry + t * q.sy * fx.spin, q.ph);
+      px0.scale.setScalar(Math.max(.0001, q.s * fx.size * shine * silk(clamp(q.g))));
       px0.updateMatrix();
-      petals.setMatrixAt(i, px0.matrix);
+      for (let k = 0; k < 4; k++) if (drawing >> k & 1) FALLS[k].mesh.setMatrixAt(i, k === q.k ? px0.matrix : NONE);
     }
-    petals.instanceMatrix.needsUpdate = true;
-    petals.count = Math.round(N_live * lerp(1, .55, pull));
+    const liveCount = Math.round(N_live * lerp(1, .8, pull));
+    FALLS.forEach((f, k) => {
+      f.mesh.visible = !!(drawing >> k & 1);
+      if (f.mesh.visible) { f.mesh.instanceMatrix.needsUpdate = true; f.mesh.count = liveCount; }
+    });
+    fallMask = used;
 
     set(foot, 'opacity', (1 - smooth(.01, .1, p)).toFixed(3));
     set(foot, 'visibility', p > .1 ? 'hidden' : 'visible');
@@ -1056,7 +1217,7 @@ async function start() {
   };
 
   // The page drives the piece picker through this.
-  window.TO_hero = { pick, state: () => ({ piece: PIECES[shownPiece][0], flips, bursts, spun: Math.abs(extra) + Math.abs(spin), p: sp, pos: sPos }) };
+  window.TO_hero = { pick, state: () => ({ piece: PIECES[shownPiece][0], fall: fallNow, flips, bursts, spun: Math.abs(extra) + Math.abs(spin), p: sp, pos: sPos }) };
 
   // Compile everything before showing it, so the first visible frame does not hitch.
   await renderer.compileAsync(scene, camera);

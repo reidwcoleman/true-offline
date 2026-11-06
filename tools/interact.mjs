@@ -335,6 +335,19 @@ await ctx.close();
   await tc.close();
 }
 
+// every showcase piece drops its own thing, and the first screen keeps the petals
+{
+  const fc = await b.newContext({ viewport: { width: 1440, height: 900 } });
+  const f = await fc.newPage();
+  await f.goto(URL, { waitUntil: 'load' });
+  await f.waitForFunction(() => document.documentElement.dataset.stops === 'ready', null, { timeout: 25000 });
+  const at = async i => { await f.evaluate(k => { const t = document.querySelector('.turn'), r = t.getBoundingClientRect(); scrollTo({ top: scrollY + r.top + (r.height - innerHeight) * (k + .5) / 4, behavior: 'instant' }); }, i); await f.waitForTimeout(900); return f.evaluate(() => window.TO_hero.state().fall); };
+  const falls = [await f.evaluate(() => window.TO_hero.state().fall)];
+  for (let i = 0; i < 4; i++) falls.push(await at(i));
+  ok('falls: petals on the first screen and Pagoda, then one of its own for each piece', falls.join() === '0,0,1,2,3', falls.join());
+  await fc.close();
+}
+
 // touch flick and stop: the page and the stage hold still once the finger is gone
 {
   const tc = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });

@@ -125,7 +125,7 @@
     scrubs.push(() => { if (Y() < innerHeight * 1.2) kick(); });
   }
 
-  /* ---------- the back is the point ---------- */
+  /* ---------- the showcase ---------- */
   function turnSection() {
     const picks = [
       ['graphic-ripped-boxy-hoodie', 'Pagoda', '#D6246E'],
@@ -201,7 +201,7 @@
       const big = Array.isArray(o), p = bySlug(big ? o[0] : o), c = firstColour(p);
       const a = big ? 'back' : 'front', z = big ? 'front' : 'back';
       const set = side => `srcset="${src(p, side, c, true)} 720w,${src(p, side, c)} 1200w" sizes="${big ? '(max-width:1000px) 100vw,50vw' : '(max-width:760px) 50vw,(max-width:1000px) 33vw,25vw'}"`;
-      return `<li class="tile${big ? ' big' : ''}" data-cat="${p.cat}" data-slug="${p.slug}" data-price="${p.price}" data-i="${i}" style="--d:${(i % 4) * 70}ms"><a href="#/${p.slug}" data-cursor="View" data-open-side="${big ? 1 : 0}">
+      return `<li class="tile${big ? ' big' : ''}" data-cat="${p.cat}" data-slug="${p.slug}" data-price="${p.price}" data-i="${i}" style="--glow:${(window.TO_GLOW || {})[p.img + (c ? '-' + c : '')] || '#ffbcd2'};--d:${(i % 4) * 70}ms"><a href="#/${p.slug}" data-cursor="View" data-open-side="${big ? 1 : 0}">
         <div class="tile-plate">
           <div class="tile-card">
             <img class="f" src="${src(p, a, c, !big)}" ${set(a)} width="720" height="900" alt="${p.name}" loading="lazy" decoding="async" draggable="false">
