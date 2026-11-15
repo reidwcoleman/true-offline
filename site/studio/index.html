@@ -213,6 +213,26 @@ tbody th{font-weight:500}
 .sk{border-radius:var(--r2);background:linear-gradient(90deg,var(--plate),#f0f0eb,var(--plate));background-size:200% 100%;animation:sk 1.2s linear infinite}
 @keyframes sk{to{background-position:-200% 0}}
 footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--t3)}
+/* visits */
+.stat-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.stat-card{padding:16px;border:1px solid var(--line);border-radius:var(--r2);background:var(--card)}
+.stat-card b{display:block;font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1.1}
+.stat-card span{font-size:13px;color:var(--t2)}
+.chart{padding:16px;border:1px solid var(--line);border-radius:var(--r2);background:var(--card);margin-bottom:16px}
+.chart .lab{display:block;margin-bottom:10px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:120px}
+.bar{flex:1;min-width:2px;background:var(--cobalt);border-radius:2px 2px 0 0;min-height:2px;opacity:.85}
+.stat-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.stat-list{padding:16px;border:1px solid var(--line);border-radius:var(--r2);background:var(--card)}
+.stat-list .lab{display:block;margin-bottom:8px}
+.stat-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+.stat-row span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stat-row .num{font-variant-numeric:tabular-nums;color:var(--t2);flex:none}
+.stat-empty{color:var(--t3);font-size:13px;padding:6px 0}
+@media (max-width:720px){
+  .stat-cards{grid-template-columns:1fr 1fr}
+  .stat-cols{grid-template-columns:1fr}
+}
 @media (max-width:720px){
   .wrap{padding:0 16px}
   .show{padding-left:16px;padding-right:16px;margin:0 -16px;scroll-padding:0 16px}
@@ -264,6 +284,12 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
 </div>
 
 <main class="wrap" data-main hidden>
+
+<section aria-labelledby="h-stats" data-stats-sec hidden>
+  <div class="sec-h"><h2 id="h-stats">Visits</h2><span class="count" data-stats-sub></span></div>
+  <p class="sub">How many people are looking at the site, which pieces they open, and where they come from.</p>
+  <div data-stats></div>
+</section>
 
 <section aria-labelledby="h-add">
   <div class="sec-h"><h2 id="h-add">Add a piece</h2></div>
@@ -460,6 +486,13 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
       </form>
       <div data-gate-error></div>
       <p class="quiet-note">Studio password: <b>${esc(PASS)}</b>. Anyone with it can add and change pieces, so share it only with people who help run the shop. On a computer that is not yours, press Sign out when you are done.</p>`;
+    // the server fetches listings itself, so the Add box just takes a link — no bookmark button
+    const how = $('.how');
+    if (how) how.outerHTML = `<div class="how" style="grid-template-columns:1fr"><div class="step"><b>Add a piece</b><p>Paste the Etsy listing's web address and press Import. Its photos, price and details come straight from Etsy, and about three minutes later it is on the site.</p>
+      <form class="row" data-open><label class="sr" for="url">Etsy listing link</label>
+      <input class="field" id="url" type="url" inputmode="url" placeholder="https://www.etsy.com/listing/…" autocomplete="off" spellcheck="false" style="height:44px">
+      <button class="btn btn-accent" type="submit" style="min-height:44px">Import</button></form>
+      <div data-open-error></div></div></div>`;
   }
   { const tl = $('[data-token-link]'); if (tl) tl.href = 'https://github.com/settings/personal-access-tokens/new?name=' + encodeURIComponent('True Offline Studio') + '&description=' + encodeURIComponent('Lets the studio page save to the true-offline repo') + `&target_name=${OWNER}&contents=write&expires_in=365`; }
   $('[data-connect]').addEventListener('submit', async e => {
@@ -492,8 +525,10 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
   const STUDIO = location.origin + location.pathname + (BRANCH === 'main' ? '' : '?branch=' + BRANCH);
   const marklet = `(function(){var S=${JSON.stringify(STUDIO)};function note(t){var d=document.createElement('div');d.textContent=t;d.style.cssText='position:fixed;z-index:2147483647;left:50%;top:24px;transform:translateX(-50%);background:#08080B;color:#F2F2EE;font:600 15px/1.4 system-ui,sans-serif;padding:14px 18px;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.3);max-width:90vw';document.body.appendChild(d);setTimeout(function(){d.remove()},5000)}if(!/(^|\\.)etsy\\.com$/.test(location.hostname)||!/\\/listing\\/\\d+/.test(location.pathname))return note('Open one of your Etsy listings first, then press this.');var ld=null;document.querySelectorAll('script[type="application/ld+json"]').forEach(function(s){try{var d=JSON.parse(s.textContent);if(d&&d['@type']==='Product')ld=d}catch(e){}});if(!ld)return note('This page has not finished loading. Reload it and press again.');var opt={};document.querySelectorAll('select[id^="variation-selector"]').forEach(function(s){var l=document.querySelector('label[for="'+s.id+'"]');var k=((l&&l.textContent)||'').trim().split(/\\s+/)[0].toLowerCase();opt[k]=[].slice.call(s.options,1).map(function(o){return o.textContent.trim()})});var o=ld.offers||{};var d={url:location.origin+location.pathname,name:ld.name,price:o.price||o.lowPrice,photos:[].concat(ld.image||[]).map(function(i){return i.contentURL||i.url||i}),description:String(ld.description||'').slice(0,3000),sizes:opt.size||opt.sizes||[],colours:opt.color||opt.colour||[]};var u=S+'#add='+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(d)))));if(!window.open(u,'_blank'))location.href=u})()`;
   const ml = $('[data-marklet]');
-  ml.href = 'javascript:' + encodeURIComponent(marklet);
-  ml.addEventListener('click', e => { e.preventDefault(); toast('Drag that button up to your bookmarks bar. You press it on an Etsy listing, not here.'); });
+  if (ml) {
+    ml.href = 'javascript:' + encodeURIComponent(marklet);
+    ml.addEventListener('click', e => { e.preventDefault(); toast('Drag that button up to your bookmarks bar. You press it on an Etsy listing, not here.'); });
+  }
 
   const listingId = u => (String(u).match(/etsy\.com\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?listing\/(\d+)/i) || [])[1];
   function readCapture() {
@@ -552,6 +587,24 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
     } catch (err) { cat.queue = (cat.queue || []).filter(x => x !== item); fail(err); b.disabled = false; }
     busy = false;
   });
+  /* Paste-a-link import: the studio server fetches the listing from Etsy and hands back the same
+     capture the bookmarklet used to make, so the rest of the flow is unchanged. */
+  async function importLink(id) {
+    const box = $('[data-open-error]'); box.innerHTML = '';
+    const say = t => { box.innerHTML = `<p class="err" role="alert">${ICON.warn}<span>${esc(t)}</span></p>`; };
+    const cap = $('[data-capture]');
+    cap.innerHTML = `<div class="capture"><div class="capture-shots"></div><div><b>Getting it from Etsy…</b><p>Fetching the photos, price and details.</p></div><div></div></div>`;
+    let r, d;
+    try { r = await fetch(WORKER + '/etsy/' + id, { cache: 'no-store', headers: { 'X-Studio-Pass': secret } }); d = await r.json().catch(() => ({})); }
+    catch (e) { cap.innerHTML = ''; return say('Could not reach the studio server. Check the connection and try again.'); }
+    if (!r.ok) { cap.innerHTML = ''; return say(d.message || 'Etsy would not hand over that listing. Try again in a moment.'); }
+    const photos = [].concat(d.photos || []).map(String).filter(u => /^https:\/\/i\.etsystatic\.com\/[\w./-]+\.(jpe?g|png|webp)$/i.test(u.split('?')[0])).map(u => u.split('?')[0]).slice(0, 12);
+    if (photos.length < 2 || !d.name || !(Number(d.price) > 0)) { cap.innerHTML = ''; return say('That listing did not come through whole (it needs at least two photos). Try another link.'); }
+    capture = { url: String(d.url).slice(0, 300), name: String(d.name).slice(0, 90), price: Number(d.price), photos, description: String(d.description || '').slice(0, 3000), sizes: [], colours: [] };
+    $('#url').value = '';
+    drawAdd();
+    cap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
   $('[data-open]').addEventListener('submit', e => {
     e.preventDefault();
     const u = $('#url').value.trim(), id = listingId(u), box = $('[data-open-error]');
@@ -559,6 +612,8 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
     const say = t => { box.innerHTML = `<p class="err" role="alert">${ICON.warn}<span>${esc(t)}</span></p>`; };
     if (!id) return say('Paste a link to one Etsy listing. It looks like etsy.com/listing/1234567890/name.');
     if (cat.products.some(p => p.id === id)) return say('That listing is already on the site.');
+    if ((cat.queue || []).some(x => listingId(x.url) === id)) return say('That listing is already on its way onto the site.');
+    if (MODE === 'pass') return importLink(id);
     window.open(`https://www.etsy.com/listing/${id}`, '_blank', 'noopener');
     $('#url').value = '';
     toast('Now press Add to True Offline in your bookmarks bar, on the Etsy page that just opened.', false, 9000);
@@ -858,10 +913,32 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
     draw();
     if (editing && by(editing)) openSheet(editing); else closeSheet();
   }
+  /* ---------- visits ---------- */
+  async function drawStats() {
+    if (MODE !== 'pass') return;
+    let s;
+    try { const r = await fetch(WORKER + '/stats', { cache: 'no-store', headers: { 'X-Studio-Pass': secret } }); if (!r.ok) return; s = await r.json(); }
+    catch (e) { return; }
+    const n = x => Number(x || 0).toLocaleString();
+    const max = Math.max(1, ...s.series.map(d => d.views));
+    const bars = s.series.map(d => `<div class="bar" title="${d.day}: ${d.views} views" style="height:${Math.round(d.views / max * 100)}%"></div>`).join('');
+    const nice = p => esc(String(p).replace(/^\/#?\/?/, '').replace(/^$/, 'Home').slice(0, 60));
+    const list = (arr, label, key, blank) => `<div class="stat-list"><span class="lab">${label}</span>${arr.length ? arr.map(x => `<div class="stat-row"><span>${key === 'path' ? nice(x.path) : esc(x.ref)}</span><span class="num">${n(x.views)}</span></div>`).join('') : `<div class="stat-empty">${blank}</div>`}</div>`;
+    $('[data-stats-sub]').textContent = `${n(s.allViews)} views all-time`;
+    $('[data-stats]').innerHTML = `
+      <div class="stat-cards">
+        <div class="stat-card"><b>${n(s.today)}</b><span>Views today</span></div>
+        <div class="stat-card"><b>${n(s.allVisits)}</b><span>Visits all-time</span></div>
+        <div class="stat-card"><b>${n(s.allViews)}</b><span>Page views all-time</span></div>
+      </div>
+      <div class="chart"><span class="lab">Views, last 30 days</span><div class="bars">${bars}</div></div>
+      <div class="stat-cols">${list(s.topPaths, 'Most-looked-at pages', 'path', 'No visits yet.')}${list(s.topRefs, 'Where visitors come from', 'ref', 'Mostly direct so far.')}</div>`;
+    $('[data-stats-sec]').hidden = false;
+  }
   async function start() {
     $('[data-gate]').hidden = true; $('[data-main]').hidden = false; $('[data-top]').hidden = false;
     $('[data-grid]').innerHTML = Array.from({ length: 12 }, () => '<li><div class="sk" style="aspect-ratio:4/5"></div></li>').join('');
-    try { await reload(); watch(0); }
+    try { await reload(); watch(0); drawStats(); }
     catch (e) { $('[data-grid]').innerHTML = `<li class="empty">${esc(e instanceof Trouble ? e.message : 'The catalog could not be read.')}</li>`; if (!(e instanceof Trouble)) console.error(e); }
   }
   addEventListener('beforeunload', e => { if (cat && pending().length) e.preventDefault(); });

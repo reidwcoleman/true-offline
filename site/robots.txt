@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /true-offline/studio/
+
+Sitemap: https://reidwcoleman.github.io/true-offline/sitemap.xml
