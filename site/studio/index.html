@@ -313,12 +313,14 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
   const q = new URLSearchParams(location.search);
   const OWNER = 'reidwcoleman', REPO = 'true-offline';
   const BRANCH = /^[\w.-]{1,40}$/.test(q.get('branch') || '') ? q.get('branch') : 'main';
-  /* The studio reaches GitHub through a tiny worker that holds the real token, so helpers only need
-     the shared password shown on the page. Point WORKER at your Cloudflare Worker (tools/studio/SETUP.md)
-     to turn that on; until it is set, the page falls back to pasting a GitHub key. */
-  const WORKER = (window.TO_STUDIO_WORKER || 'https://REPLACE-ME.workers.dev').replace(/\/+$/, '');
-  const PASS = 'offline';                                  // the password shown on the page; matches the worker's STUDIO_PASS
-  const MODE = /\.workers\.dev$/.test(WORKER) && !/REPLACE-ME/.test(WORKER) ? 'pass' : 'token';
+  /* The studio reaches GitHub through a small server (a Firebase function) that holds the real token,
+     so helpers only need the shared password shown on the page. WORKER is that server; PASS is the
+     password. See tools/studio/SETUP.md to change either. A test can force the old paste-a-key flow by
+     setting window.TO_STUDIO_API (a mock GitHub) and leaving TO_STUDIO_WORKER unset. */
+  const WORKER = (window.TO_STUDIO_WORKER || 'https://us-central1-trueoffline-studio-rc26.cloudfunctions.net/studio').replace(/\/+$/, '');
+  const PASS = 'offline';                                  // the password shown on the page; matches the server's STUDIO_PASS secret
+  const MODE = (window.TO_STUDIO_API && !window.TO_STUDIO_WORKER) ? 'token'
+             : (/^https:\/\//.test(WORKER) && !/REPLACE-ME/.test(WORKER)) ? 'pass' : 'token';
   const API = MODE === 'pass' ? WORKER : (window.TO_STUDIO_API || 'https://api.github.com') + `/repos/${OWNER}/${REPO}`;
   const KEY = MODE === 'pass' ? 'to-studio-pass' : 'to-studio-key';
   const FALLS = ['petals', 'stars', 'feathers', 'flames'], CATS = ['Hoodies', 'Tops', 'Sweats', 'Shorts'];

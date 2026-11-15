@@ -1,67 +1,48 @@
-# Studio password server — one-time setup
+# Studio password server (Firebase)
 
-This puts a password on the studio's **Enter the studio** page that helpers just press Enter on.
-The real GitHub token lives on a tiny free Cloudflare Worker, not on the site, so GitHub never
-revokes it and nobody has to paste a token.
+The studio's **Enter the studio** page shows a shared password that helpers just press Enter on. The
+real GitHub token lives on a small Firebase function (`firebase/functions/index.js`), never on the
+site, so GitHub never revokes it and nobody has to paste a token.
 
-You do this once. It takes about five minutes and needs no command line.
+**This is already set up and live** — you don't need to do anything to use it. This file is only for
+changing the password or the token later.
 
-## 1. Make a fresh GitHub token
+## What's running
 
-The one that was shared in chat must be treated as burned — make a new one.
+- **Project:** `trueoffline-studio-rc26` (Firebase / Google Cloud, owner reidwcoleman@gmail.com).
+- **Function URL:** `https://us-central1-trueoffline-studio-rc26.cloudfunctions.net/studio` — this is
+  the `WORKER` value near the top of `site/studio/index.html`.
+- **Password:** `offline` — the `PASS` value in the same file, and the `STUDIO_PASS` secret.
+- **Token:** a fine-grained GitHub token for the true-offline repo (Contents: Read and write), kept as
+  the `GH_TOKEN` secret in Google Secret Manager. Never in the repo, never on the page.
+- Cost is effectively nothing: the proxy runs a few times a day, well inside the free tier.
 
-1. Go to <https://github.com/settings/personal-access-tokens/new>
-2. Name it `True Offline Studio`. Set **Expiration** to a year (or longer).
-3. **Repository access** → **Only select repositories** → **true-offline**.
-4. **Permissions** → **Repository permissions** → **Contents** → **Read and write**.
-5. **Generate token** and copy it. You will paste it into Cloudflare in step 3, and nowhere else.
+The function is a locked-down proxy: it only passes through the password-checked calls the studio
+makes (read/write `catalog.json`, read the studio build), and turns everything else away.
 
-## 2. Create the worker (no command line)
-
-1. Sign in (free) at <https://dash.cloudflare.com>. In the sidebar: **Workers & Pages** → **Create** → **Create Worker**.
-2. Name it `true-offline-studio`, click **Deploy**, then **Edit code**.
-3. Delete whatever is in the editor and paste the whole of [`worker.js`](./worker.js). Click **Deploy**.
-4. Copy the worker's address — it looks like `https://true-offline-studio.YOURNAME.workers.dev`.
-
-## 3. Add the two secrets
-
-In the worker's page: **Settings** → **Variables and Secrets** → **Add**. Add two, each as a
-**Secret** (not plain text):
-
-| Name          | Value                                         |
-| ------------- | --------------------------------------------- |
-| `GH_TOKEN`    | the GitHub token from step 1                  |
-| `STUDIO_PASS` | the password helpers will use, e.g. `offline` |
-
-Click **Deploy** to save.
-
-## 4. Turn it on in the site
-
-Send me (or edit yourself, near the top of `site/studio/index.html`):
-
-- the worker address from step 2, and
-- the password you chose in step 3.
-
-In the script there are two lines:
-
-```js
-const WORKER = (window.TO_STUDIO_WORKER || 'https://REPLACE-ME.workers.dev').replace(/\/+$/, '');
-const PASS   = 'offline';
-```
-
-Set `WORKER` to your `https://…workers.dev` address and `PASS` to your password. Push to `main`.
-From then on the studio opens with the password already filled in — anyone presses Enter and is in,
-on any computer, and the token stays hidden on the worker.
-
-## If you ever want to change the password
-
-Change `STUDIO_PASS` in the worker (step 3) **and** `PASS` in the page (step 4) to the same new word.
-
-## Doing step 2–3 from the command line instead
+## Change the password
 
 ```
-cd tools/studio
-npx wrangler deploy
-npx wrangler secret put GH_TOKEN      # paste the token when asked
-npx wrangler secret put STUDIO_PASS   # type the password when asked
+cd tools/studio/firebase
+printf '%s' 'NEWPASSWORD' | firebase functions:secrets:set STUDIO_PASS --project trueoffline-studio-rc26 --data-file -
+firebase deploy --only functions --project trueoffline-studio-rc26
+```
+
+Then change `PASS` near the top of `site/studio/index.html` to the same word and push `main`.
+
+## Change the GitHub token (e.g. after making a fresh one)
+
+```
+cd tools/studio/firebase
+printf '%s' 'github_pat_NEWTOKEN' | firebase functions:secrets:set GH_TOKEN --project trueoffline-studio-rc26 --data-file -
+firebase deploy --only functions --project trueoffline-studio-rc26
+```
+
+Nothing in the site changes — the new token just takes over inside the server.
+
+## Redeploy the function after editing its code
+
+```
+cd tools/studio/firebase
+firebase deploy --only functions --project trueoffline-studio-rc26
 ```

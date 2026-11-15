@@ -1,0 +1,12 @@
+{
+  "name": "true-offline-studio-functions",
+  "description": "Password-gated proxy that holds the GitHub token for the True Offline studio",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "dependencies": {
+    "firebase-functions": "^6.3.2"
+  },
+  "private": true
+}
