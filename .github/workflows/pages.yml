@@ -2,6 +2,7 @@ name: Publish site
 on:
   push:
     branches: [main]
+    paths-ignore: [catalog.json]      # catalog changes go through studio.yml, which publishes when it is done
   workflow_dispatch:
 permissions:
   contents: read

@@ -1,13 +1,15 @@
 """catalog.json -> site/data.js, plus the count and cache version in site/index.html.
 
-catalog.json is the one source of truth. The studio (tools/studio) edits it; nothing else should.
-Run from the repo root: python3 tools/build_data.py [--bump]
+catalog.json is the one source of truth. The studio page (site/studio) and its worker
+(tools/studio/run.py) edit it; nothing else should. A piece marked hidden stays in the catalog
+but is left off the site. Run from the repo root: python3 tools/build_data.py [--bump]
 """
 import colorsys, json, math, os, re, sys
 import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FALLS = ('petals', 'stars', 'feathers', 'flames')
 PUBLIC = ('id', 'slug', 'name', 'cat', 'note', 'price', 'etsy', 'img', 'colours', 'fabric', 'gsm', 'fit', 'finish', 'sizes', 'rows', 'review')
 WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen',
          'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen', 'Twenty', 'Twenty-one', 'Twenty-two', 'Twenty-three', 'Twenty-four',
@@ -22,6 +24,10 @@ def save(cat):
     tmp = f'{ROOT}/catalog.json.tmp'
     json.dump(cat, open(tmp, 'w'), indent=1, ensure_ascii=False)
     os.replace(tmp, f'{ROOT}/catalog.json')
+
+
+def visible(cat):
+    return [p for p in cat['products'] if not p.get('hidden')]
 
 
 def colour_keys(p):
@@ -47,8 +53,8 @@ def glow(path):
 def layout(cat):
     """The shop grid: bands of five, one feature tile and four smalls, the feature alternating sides.
     A feature only gets its big tile while there are four smalls to sit beside it."""
-    by = {p['slug']: p for p in cat['products']}
-    order = [s for s in cat['line'] if s in by] + [p['slug'] for p in cat['products'] if p['slug'] not in cat['line']]
+    by = {p['slug']: p for p in visible(cat)}
+    order = [s for s in cat['line'] if s in by] + [s for s in by if s not in cat['line']]
     feats = [s for s in order if by[s].get('feature')]
     smalls = [s for s in order if not by[s].get('feature')]
     out, band = [], 0
@@ -67,21 +73,25 @@ def layout(cat):
 
 
 def showcase(cat):
-    by = {p['slug']: p for p in cat['products']}
-    out = []
-    for s in cat['showcase']:
-        p = by.get(s['slug'])
+    by = {p['slug']: p for p in visible(cat)}
+    out, seen = [], set()
+    colour = lambda v, d: v.lower() if re.fullmatch(r'#[0-9a-fA-F]{6}', str(v or '')) else d
+    for s in cat.get('showcase', []):
+        p = by.get(s.get('slug'))
         m = p and p.get('mesh')
-        if not m or not os.path.exists(f"{ROOT}/site/img/hero/{m['key']}.bin"):
+        if not m or s['slug'] in seen or not os.path.exists(f"{ROOT}/site/img/hero/{m['key']}.bin"):
             continue                                   # never put a piece on show without its 3D model
-        out.append(dict(key=m['key'], slug=s['slug'], word=s['word'], tint=s['tint'], ink=s['ink'], flat=s.get('flat') or s['tint'],
-                        fall=s.get('fall', 'petals'), w=m['w'], h=m['h'], inner=m['inner']))
-    return out
+        seen.add(s['slug'])
+        word = re.sub(r'[^A-Za-z. ]', '', str(s.get('word') or '')).strip()[:12] or 'Piece'
+        tint, ink = colour(s.get('tint'), '#ff9fbe'), colour(s.get('ink'), '#ff6f9f')
+        out.append(dict(key=m['key'], slug=s['slug'], word=word, tint=tint, ink=ink, flat=colour(s.get('flat'), ink),
+                        fall=s.get('fall') if s.get('fall') in FALLS else 'petals', w=m['w'], h=m['h'], inner=m['inner']))
+    return out[:8]
 
 
 def build(bump=False):
     cat = load()
-    P = cat['products']
+    P = visible(cat)
     public = [{k: p.get(k) for k in PUBLIC} for p in P]
     glows = {}
     for p in P:

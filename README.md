@@ -35,34 +35,38 @@ cd site && python3 -m http.server 4780
 
 ## The studio
 
-```
-./studio.sh          # or double-click "Open Studio.command"
-```
+https://reidwcoleman.github.io/true-offline/studio/
 
-A small web app on this Mac (http://localhost:4781) for running the shop without touching code.
+A page for running the shop from any computer, with no code. It lives in this repo (`site/studio/index.html`) and saves to this repo; GitHub does the work.
 
-- **Add a piece.** Paste an Etsy listing link, or press Add next to a listing under "New on your Etsy shop" (read from the shop's public feed). It reads the listing, downloads the photos, works out which is the front, the back and the size chart (and which photos belong to which colour), cuts the garment out, reads the size chart and adds the piece to the line. Then it opens the piece so the one-line note can be rewritten: that line is drafted from the Etsy text and is the one thing worth writing by hand.
-- **On show.** Choose which pieces are in the scrolling 3D section and in what order (two to eight). The first one opens the site. Each has a word, a glow colour, a word colour and what falls around it. A piece that has never been on show gets its 3D model built when the show is saved, about twenty seconds.
-- **The line.** Drag to reorder. Click a piece to edit its name, note, type, price, fabric and so on, to make it a big tile, to change which photos are used, or to remove it.
-- **Preview** shows the site with the changes. **Publish** lists what changed, then commits `catalog.json` and `site/` and pushes `main`, which deploys. Nothing is live until then.
+- **Connect.** The first time on a computer, it asks for a GitHub key (a fine-grained token for this repo with Contents set to Read and write) and shows how to make one. The key stays in that browser. Disconnect removes it.
+- **Add a piece.** Drag the Add to True Offline button to the bookmarks bar once. On an Etsy listing, press it: the studio opens with the piece ready, and Add to the site sends it off. About three minutes later it is on the site, made the same way as the rest: photos sorted into front, back, colours and size chart, cut out, measurements read. Its one-line note is drafted from the Etsy text and is the one thing worth rewriting by hand.
+- **On show.** Choose which pieces are in the scrolling 3D section and in what order (two to eight). The first one opens the site. Each has a word, a glow colour, a word colour and what falls around it. A piece that has never been on show gets its 3D model built when you publish.
+- **The line.** Drag to reorder. Click a piece to edit its name, note, type, price, fabric and so on, to make it a big tile, to hide it from the site, to change which photos are used, or to remove it.
+- **Publish** lists what changed and saves it. Nothing is live until then; the site follows about three minutes later, and the page shows the progress.
 
 How it works:
 
-- **`catalog.json` is the one source of truth**: every product, the order of the line, what is on show, and each 3D model's settings. `tools/build_data.py` turns it into `site/data.js` (`TO_PRODUCTS`, `TO_LINE`, `TO_SHOW`, `TO_FIT`, `TO_GLOW`) and keeps the piece count and cache version in `site/index.html` right. The page and the 3D stage read everything from there; nothing about which pieces exist is written into `app.js` or `tools/hero/main.js` any more.
-- **Etsy turns away anything that is not a real browser** (plain requests get a 403 from its bot wall). `tools/studio/etsy.mjs` opens the listing in a real Chrome window with its own profile (`raw/.chrome`) and reads the page over the DevTools protocol. If Etsy asks for a human check, the window comes forward and the studio waits up to three minutes for it. The shop feed (`/shop/TrueOffline/rss`) needs no browser. Do not hammer Etsy with test fetches: a few quick ones in a row bring the check on.
-- **`tools/studio/pipeline.py`** is everything between the link and the product record. `tools/studio/server.py` is the web app: one job at a time, with a log the page polls. It listens on 127.0.0.1 only and refuses requests from other origins.
-- **Cutouts** use Apple Vision, as before. A pale garment on a white ground (the white tee) gives Vision nothing to find, so `plain_ground()` in `tools/build_assets.py` takes over: everything the background colour cannot reach from the border.
+- **`catalog.json` is the one source of truth**: every product, the order of the line, what is on show, each 3D model's settings, and a `queue` of listings waiting to be made. The page only ever edits that one file, through the GitHub API. `tools/build_data.py` turns it into `site/data.js` (`TO_PRODUCTS`, `TO_LINE`, `TO_SHOW`, `TO_FIT`, `TO_GLOW`) and keeps the piece count and cache version in `site/index.html` right. Nothing about which pieces exist is written into `app.js` or `tools/hero/main.js`.
+- **The worker.** A push that changes `catalog.json` starts `.github/workflows/studio.yml`, which runs `tools/studio/run.py` on one of GitHub's Mac runners (Apple Vision does the cutouts and reads the size charts, so it has to be a Mac). It makes queued pieces, remakes cutouts when the chosen photos change, builds 3D models for pieces newly on show, sweeps away files of removed pieces, rebuilds `data.js`, retakes the still that phones open on if the opening piece changed, commits, and deploys the site. Trouble with one piece is written to `problems` in the catalog, where the page shows it, and the rest carries on. `run.py` trusts nothing in the catalog: every field is checked and put in shape first.
+- **Why a bookmark button and not just a pasted link.** Etsy turns away anything that is not a real person's browser. Plain requests get a 403, and a real Chrome on GitHub's runners (Linux and Mac both tried, 2026-11-15) is stopped at Etsy's bot check. So the listing is read where it can be: in the browser of whoever is adding it. The button reads the listing's own data from the page (name, price, photos, description, sizes, colours) and hands it to the studio in the address. Photos are then fetched from Etsy's image host, which is open. Only photos on `i.etsystatic.com` are accepted. An Etsy API key would make a bare pasted link work; that is not set up.
+- **Saving is merge-safe.** On publish the page fetches the newest catalog, lays its own changes over it field by field, and saves. So it does not matter if the worker, or another computer, saved in between.
+- **Hidden pieces** stay in the catalog and keep their images, but are left out of `data.js`.
+- **Cutouts** use Apple Vision. A pale garment on a white ground (the white tee) gives Vision nothing to find, so `plain_ground()` in `tools/build_assets.py` takes over: everything the background colour cannot reach from the border.
 - **3D models for any piece.** `tools/build_hero.py` builds hoodies, tops and bottoms. For a hoodie nobody has traced, the neck line and hood opening come from the outline (`auto_hood`): the row where the outline widens from hood to shoulders is the landmark, and on the five hand-traced pieces it lands within a few percent of where they were set by hand. Tops have no hood to carve. Trousers and shorts are open at the waist and at each leg (`extend_bottoms`). The first five keep their hand-traced settings in `catalog.json`.
 - **The grid** is laid out by `layout()` in `build_data.py`: bands of five, one big tile and four smalls, the big one alternating sides. A piece only gets its big tile while there are four smalls to go with it.
-- **The still that phones open on** (`img/poster-*.webp`) is retaken on publish when the opening piece changes. That step needs the Playwright test browser; if it is missing, publishing still works and says so.
-- The helper Vision tool hangs inside some command sandboxes. Run the studio and the build scripts from a normal terminal.
+- **Trying changes safely.** The workflow also runs for a branch called `studio-test` (without deploying), and the page takes `?branch=studio-test`. The page can be pointed at a stand-in for GitHub by setting `window.TO_STUDIO_API` before it loads.
+- **The key and other sites.** Browser storage is shared by everything under `reidwcoleman.github.io`, so keep the key fine-grained and limited to this one repo.
+- Locally, `tools/vision mask` hangs inside some command sandboxes. Run the build scripts from a normal terminal.
 
 ## Rebuilding by hand
 
-The studio does all of this. The steps, for when something needs redoing:
+The studio's worker does all of this on GitHub. The steps, for when something needs redoing on a Mac:
 
 ```
+pip install -r tools/requirements.txt
 swiftc -O tools/vision.swift -o tools/vision   # once, macOS
+python3 tools/studio/run.py                    # everything the worker does: queue, cutouts, models, data.js
 python3 tools/build_data.py                    # catalog.json -> site/data.js (add --bump for a new cache version)
 python3 tools/build_hero.py [slug ...]         # 3D models and maps; no names rebuilds every piece that has one
 python3 tools/build_grain.py                   # film grain tile
@@ -84,7 +88,7 @@ node tools/interact.mjs <dir>   # meshes, picker, filters, sorting, Build a fit,
 
 ## Publishing
 
-Pushing `main` deploys `site/` to GitHub Pages through `.github/workflows/pages.yml`. The studio's Publish button does exactly that.
+Pushing `main` deploys `site/` to GitHub Pages through `.github/workflows/pages.yml`. A push that only changes `catalog.json` is left to `.github/workflows/studio.yml`, which deploys when the worker is done.
 
 ## Keep in mind
 

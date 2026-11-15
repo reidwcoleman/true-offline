@@ -1,11 +1,13 @@
-"""Everything between an Etsy link and a finished product on the site.
+"""Everything between a captured Etsy listing and a finished product on the site.
 
-    link -> listing (name, price, photos, sizes, description) -> raw photos -> which photo is what
-         -> cutouts in site/img -> size chart numbers -> a product record for catalog.json
+    capture (name, price, photos, sizes, description) -> raw photos -> which photo is what
+        -> cutouts in site/img -> size chart numbers -> a product record for catalog.json
 
-Used by tools/studio/server.py. Run from the repo root.
+The capture comes from the "Add to True Offline" bookmark button, which reads the listing in the
+person's own browser: Etsy turns away servers, so nothing here ever requests an Etsy page. Photos
+come from Etsy's image host, which is open. Used by tools/studio/run.py. Needs macOS (Apple Vision).
 """
-import colorsys, glob, html, itertools, json, os, re, shutil, subprocess, sys, urllib.request
+import colorsys, glob, html, itertools, json, os, re, subprocess, sys, urllib.request
 import numpy as np
 from PIL import Image, ImageOps
 
@@ -13,116 +15,49 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 sys.path.insert(0, f'{ROOT}/tools')
 RAW, IMG = f'{ROOT}/raw', f'{ROOT}/site/img'
 UA = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15'}
-SHOP_RSS = 'https://www.etsy.com/shop/TrueOffline/rss'
 CATS = ('Hoodies', 'Tops', 'Sweats', 'Shorts')
+PHOTO = re.compile(r'https://i\.etsystatic\.com/[\w./-]+\.(?:jpe?g|png|webp)', re.I)
 
 
 class Problem(Exception):
     """Something the person using the studio should be told in plain words."""
 
 
-def node():
-    n = shutil.which('node')
-    if n:
-        return n
-    for pat in ('~/.nvm/versions/node/*/bin/node', '/opt/homebrew/bin/node', '/usr/local/bin/node'):
-        found = sorted(glob.glob(os.path.expanduser(pat)))
-        if found:
-            return found[-1]
-    raise Problem('Node.js is needed to read Etsy and was not found.')
-
-
-# ---------- the listing ----------
+# ---------- the capture ----------
 
 def listing_id(url):
-    m = re.search(r'etsy\.com/(?:[a-z]{2}(?:-[a-z]{2})?/)?listing/(\d+)(?:/([^/?#]+))?', url.strip(), re.I)
+    m = re.search(r'etsy\.com/(?:[a-z]{2}(?:-[a-z]{2})?/)?listing/(\d+)(?:/([\w-]+))?', str(url).strip(), re.I)
     if not m:
-        raise Problem('That does not look like an Etsy listing link. It should look like etsy.com/listing/1234567890/name.')
+        raise Problem('That is not an Etsy listing link.')
     return m.group(1), (m.group(2) or 'item')
 
 
-def fetch_listing(url, log=print):
-    """Opens the listing in a real Chrome window (Etsy refuses anything else) and returns its HTML."""
-    lid, slug = listing_id(url)
-    out = f'{RAW}/.page-{lid}.html'
-    os.makedirs(RAW, exist_ok=True)
-    saved = f'{RAW}/.pages/{lid}.html'                 # a page saved by hand, for tests or when Etsy will not load
-    if os.path.exists(saved):
-        log('Using the saved copy of the listing')
-        return open(saved).read()
-    if os.path.exists(out):
-        os.remove(out)
-    p = subprocess.Popen([node(), f'{ROOT}/tools/studio/etsy.mjs', f'{RAW}/.chrome', out, f'https://www.etsy.com/listing/{lid}/{slug}'],
-                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    err = None
-    for line in p.stdout:
-        try:
-            ev = json.loads(line)
-        except ValueError:
-            continue
-        if ev['state'] == 'open':
-            log('Opening the listing on Etsy')
-        elif ev['state'] == 'captcha':
-            log('Etsy wants to check you are a person. A Chrome window just came forward: finish the check there and this carries on.', 'ask')
-        elif ev['state'] == 'error':
-            err = ev['error']
-    p.wait()
-    if err or not os.path.exists(out):
-        raise Problem(err or 'Could not read the listing from Etsy.')
-    page = open(out).read()
-    os.remove(out)
-    return page
-
-
-def parse_listing(page):
-    prod = None
-    for m in re.finditer(r'<script type="application/ld\+json"[^>]*>(.*?)</script>', page, re.S):
-        try:
-            d = json.loads(m.group(1))
-        except ValueError:
-            continue
-        if isinstance(d, dict) and d.get('@type') == 'Product':
-            prod = d
-    if not prod:
-        raise Problem('Etsy showed a page, but it was not a listing.')
-    photos = [(i.get('contentURL') or i.get('url')) if isinstance(i, dict) else i for i in prod.get('image', [])]
-    photos = [re.sub(r'il_\d+x[N\d]+\.', 'il_fullxfull.', u.split('?')[0]) for u in photos if u]
-    offers = prod.get('offers') or {}
-    price = offers.get('price') or offers.get('lowPrice')
-    options = {}
-    for sm in re.finditer(r'<select[^>]*id="(variation-selector-\d+)"[^>]*>(.*?)</select>', page, re.S):
-        lab = re.search(r'<label[^>]*for="%s"[^>]*>(.*?)</label>' % sm.group(1), page, re.S)
-        lab = html.unescape(re.sub(r'<[^>]+>', ' ', lab.group(1))).split() if lab else []
-        vals = [html.unescape(re.sub(r'<[^>]+>', '', o)).strip() for o in re.findall(r'<option[^>]*>(.*?)</option>', sm.group(2), re.S)][1:]
-        # "XL ($25.99)" and "M [Sold out]" are still just XL and M
-        vals = [re.sub(r'\s*[\(\[].*$', '', v).strip() for v in vals]
-        options[(lab[0] if lab else 'Option').lower()] = [v for v in vals if v]
-    lid, slug = listing_id(prod.get('url') or '')
-    shop = re.search(r'etsy\.com/shop/([A-Za-z0-9]+)', page)
-    return dict(id=str(prod.get('sku') or lid), etsy=f'https://www.etsy.com/listing/{lid}/{slug}', name=html.unescape(prod.get('name') or '').strip(),
-                price=float(price) if price else None, photos=photos, description=html.unescape(prod.get('description') or ''),
-                sizes=options.get('size') or options.get('sizes') or [], colours=options.get('color') or options.get('colour') or options.get('primary') or [],
-                shop=shop.group(1) if shop else None)
-
-
-def shop_feed():
-    """The shop's public feed: its ten newest listings. No browser needed."""
-    req = urllib.request.Request(SHOP_RSS, headers=UA)
-    xml = urllib.request.urlopen(req, timeout=20).read().decode('utf8', 'replace')
-    out = []
-    for item in re.findall(r'<item>(.*?)</item>', xml, re.S):
-        link = re.search(r'<link>(.*?)</link>', item, re.S)
-        title = re.search(r'<title>(.*?)</title>', item, re.S)
-        desc = html.unescape(re.search(r'<description>(.*?)</description>', item, re.S).group(1))
-        img = re.search(r'<img src="([^"]+)"', desc)
-        price = re.search(r'class="price">([\d.]+)', desc)
-        try:
-            lid, slug = listing_id(link.group(1))
-        except Problem:
-            continue
-        out.append(dict(id=lid, url=f'https://www.etsy.com/listing/{lid}/{slug}', name=re.sub(r'\s+by\s+\w+\s*$', '', html.unescape(title.group(1))).strip(),
-                        price=float(price.group(1)) if price else None, thumb=img.group(1) if img else None))
-    return out
+def clean_capture(c):
+    """What the bookmark button sent is typed by nobody and could be anything. Keep only what a
+    listing can hold, and only photos that live on Etsy's image host."""
+    if not isinstance(c, dict):
+        raise Problem('The listing did not come through.')
+    lid, slug = listing_id(c.get('url', ''))
+    text = lambda v, n: re.sub(r'[\x00-\x08\x0b-\x1f<>]', '', html.unescape(str(v or '')))[:n].strip()
+    photos = []
+    for u in c.get('photos') or []:
+        u = str(u).split('?')[0]
+        if PHOTO.fullmatch(u) and u not in photos:
+            photos.append(re.sub(r'il_\d+x[N\d]+\.', 'il_fullxfull.', u))
+    try:
+        price = round(float(c.get('price')), 2)
+    except (TypeError, ValueError):
+        price = None
+    if not 0 < (price or 0) < 10000:
+        raise Problem('The price did not come through from Etsy.')
+    name = re.sub(r'\s+', ' ', text(c.get('name'), 90))
+    if not name:
+        raise Problem('The name did not come through from Etsy.')
+    if len(photos) < 2:
+        raise Problem('The listing needs at least a front and a back photo.')
+    short = lambda vs, n, size: [t for t in (re.sub(r'\s*[\(\[].*$', '', text(v, 40)).strip()[:size] for v in (vs or [])[:n]) if t]
+    return dict(id=lid, etsy=f'https://www.etsy.com/listing/{lid}/{slug}', name=name, price=price, photos=photos[:12],
+                description=text(c.get('description'), 6000), sizes=short(c.get('sizes'), 14, 10), colours=short(c.get('colours'), 6, 30))
 
 
 # ---------- details ----------
@@ -179,8 +114,17 @@ def download(photos, lid, log=print):
         if os.path.exists(path) and os.path.getsize(path) > 2000:
             continue
         log(f'Downloading photo {n + 1} of {len(photos)}')
-        data = urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=40).read()
-        Image.open(__import__('io').BytesIO(data)).convert('RGB').save(path, quality=95)
+        if not PHOTO.fullmatch(u):
+            raise Problem('A photo link is not on Etsy.')
+        data = urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=40).read(20_000_001)
+        if len(data) > 20_000_000:
+            raise Problem('A photo is too large.')
+        im = Image.open(__import__('io').BytesIO(data))
+        im.load()                                      # proves it is a real picture before anything is kept
+        if data[:2] == b'\xff\xd8':
+            open(path, 'wb').write(data)               # already a JPEG: keep Etsy's own bytes
+        else:
+            im.convert('RGB').save(path, quality=95)
     return d
 
 
@@ -407,17 +351,12 @@ def draft_note(p, kv):
 
 # ---------- one call for a new product ----------
 
-def new_product(url, cat, log=print, page=None):
-    """Builds the record and the images for a listing. Does not touch catalog.json."""
-    lid, _ = listing_id(url)
-    if any(p['id'] == lid for p in cat['products']):
+def new_product(capture, cat, log=print):
+    """Builds the record and the images for a captured listing. Does not touch catalog.json."""
+    L = clean_capture(capture)
+    if any(p['id'] == L['id'] for p in cat['products']):
         raise Problem('That listing is already on the site.')
-    L = parse_listing(page or fetch_listing(url, log))
-    if not L['photos']:
-        raise Problem('The listing has no photos.')
-    if L['price'] is None:
-        raise Problem('Could not read the price from Etsy.')
-    log(f"Found {L['name']}")
+    log(f"Adding {L['name']}")
     download(L['photos'], L['id'], log)
     log('Sorting the photos')
     views, chart, shots = sort_photos(L['id'], L['colours'], log)
@@ -445,12 +384,10 @@ def new_product(url, cat, log=print, page=None):
     p['note'] = draft_note(p, sp['kv'])
     p['draft'] = True                                   # the note is a first guess until someone edits it
     cutouts(p, log)
+    p['cut'] = signature(p)
     return p
 
 
-if __name__ == '__main__':
-    # python3 tools/studio/pipeline.py <saved listing.html>   (a dry run that prints the record)
-    cat = json.load(open(f'{ROOT}/catalog.json'))
-    page = open(sys.argv[1]).read()
-    L = parse_listing(page)
-    print(json.dumps(new_product(L['etsy'], cat, page=page), indent=1)[:3000])
+def signature(p):
+    """Which photos a piece's cutouts were made from. When this stops matching, they are remade."""
+    return json.dumps(p['views'], sort_keys=True, separators=(',', ':'))

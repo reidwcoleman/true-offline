@@ -1,6 +1,9 @@
 {
  "line": [
   "dirty-faded-flare-zip-hoodie",
+  "signature-oversized-tee",
+  "signature-zip-up",
+  "chrome-acid-long-sleeve-tee",
   "graphic-ripped-boxy-hoodie",
   "fury-logo-straight-sweatpants",
   "logo-wash-jorts",
@@ -28,7 +31,7 @@
    "tint": "#ff9fbe",
    "ink": "#ff6f9f",
    "fall": "petals",
-   "flat": "#FF9FBE"
+   "flat": "#ff9fbe"
   },
   {
    "slug": "graphic-ripped-boxy-hoodie",
@@ -36,7 +39,7 @@
    "tint": "#ff5f96",
    "ink": "#ff2f86",
    "fall": "petals",
-   "flat": "#D6246E"
+   "flat": "#d6246e"
   },
   {
    "slug": "deep-red-logo-zip-hoodie",
@@ -44,7 +47,7 @@
    "tint": "#e6405a",
    "ink": "#1f78ff",
    "fall": "stars",
-   "flat": "#B23A63"
+   "flat": "#b23a63"
   },
   {
    "slug": "2018-wc-faded-hoodie",
@@ -52,7 +55,7 @@
    "tint": "#ff6a2a",
    "ink": "#ff6a00",
    "fall": "feathers",
-   "flat": "#E2521C"
+   "flat": "#e2521c"
   },
   {
    "slug": "dirty-faded-flare-zip-hoodie",
@@ -60,7 +63,7 @@
    "tint": "#e9d3b0",
    "ink": "#ffc873",
    "fall": "flames",
-   "flat": "#E9D3B0"
+   "flat": "#e9d3b0"
   }
  ],
  "fit": {
@@ -213,7 +216,8 @@
       0.255
      ]
     ]
-   }
+   },
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4607885005",
@@ -318,7 +322,8 @@
     "https://i.etsystatic.com/54506076/r/il/2aad9b/8781584330/il_fullxfull.8781584330_nv7t.jpg",
     "https://i.etsystatic.com/54506076/r/il/3b7f76/8829411735/il_fullxfull.8829411735_rv3q.jpg",
     "https://i.etsystatic.com/54506076/r/il/7d4769/8829411767/il_fullxfull.8829411767_em9d.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4598064712",
@@ -473,7 +478,8 @@
       0.26
      ]
     ]
-   }
+   },
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4594092973",
@@ -578,7 +584,8 @@
     "https://i.etsystatic.com/54506076/r/il/ef2fa7/8673311362/il_fullxfull.8673311362_kghz.jpg",
     "https://i.etsystatic.com/54506076/r/il/6fca51/8721141821/il_fullxfull.8721141821_4jl9.jpg",
     "https://i.etsystatic.com/54506076/r/il/0e85eb/8721141867/il_fullxfull.8721141867_7s8d.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4593331552",
@@ -741,7 +748,8 @@
       0.085
      ]
     ]
-   }
+   },
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4594073163",
@@ -900,7 +908,8 @@
       0.09
      ]
     ]
-   }
+   },
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4593507922",
@@ -1047,7 +1056,8 @@
       0.27
      ]
     ]
-   }
+   },
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4603708191",
@@ -1152,7 +1162,8 @@
     "https://i.etsystatic.com/54506076/r/il/f61e11/8746823296/il_fullxfull.8746823296_b7bd.jpg",
     "https://i.etsystatic.com/54506076/r/il/e31969/8794649403/il_fullxfull.8794649403_id03.jpg",
     "https://i.etsystatic.com/54506076/r/il/f73d39/8794649497/il_fullxfull.8794649497_buqx.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4607676717",
@@ -1255,7 +1266,8 @@
     "https://i.etsystatic.com/54506076/r/il/11335f/8780109276/il_fullxfull.8780109276_h6fr.jpg",
     "https://i.etsystatic.com/54506076/r/il/536ca6/8780109350/il_fullxfull.8780109350_degj.jpg",
     "https://i.etsystatic.com/54506076/r/il/3e955e/8827939569/il_fullxfull.8827939569_7m7r.jpg"
-   ]
+   ],
+   "cut": "{\"black\":[0,2],\"ivory\":[1,3]}"
   },
   {
    "id": "4594086745",
@@ -1336,7 +1348,8 @@
     "https://i.etsystatic.com/54506076/r/il/1d1e2d/8808036441/il_fullxfull.8808036441_q2dy.jpg",
     "https://i.etsystatic.com/54506076/r/il/7916f5/8808036517/il_fullxfull.8808036517_kx0q.jpg",
     "https://i.etsystatic.com/54506076/r/il/9b317c/8808036571/il_fullxfull.8808036571_htgg.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4605137651",
@@ -1441,7 +1454,8 @@
     "https://i.etsystatic.com/54506076/r/il/68ebd5/8758995948/il_fullxfull.8758995948_62t2.jpg",
     "https://i.etsystatic.com/54506076/r/il/0fd1bb/8758996024/il_fullxfull.8758996024_8z0o.jpg",
     "https://i.etsystatic.com/54506076/r/il/5fb4df/8758996116/il_fullxfull.8758996116_26nv.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4593312297",
@@ -1522,7 +1536,8 @@
     "https://i.etsystatic.com/54506076/r/il/a3752f/8734845454/il_fullxfull.8734845454_om61.jpg",
     "https://i.etsystatic.com/54506076/r/il/a25969/8782676157/il_fullxfull.8782676157_pg19.jpg",
     "https://i.etsystatic.com/54506076/r/il/34837a/8782676215/il_fullxfull.8782676215_e40d.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4594819815",
@@ -1610,7 +1625,8 @@
     "https://i.etsystatic.com/54506076/r/il/4cb9d0/8721170317/il_fullxfull.8721170317_rug4.jpg",
     "https://i.etsystatic.com/54506076/r/il/f90252/8721170391/il_fullxfull.8721170391_l9f8.jpg",
     "https://i.etsystatic.com/54506076/r/il/b9c820/8673340554/il_fullxfull.8673340554_sldy.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4593496941",
@@ -1691,7 +1707,8 @@
     "https://i.etsystatic.com/54506076/r/il/e81e95/8673321302/il_fullxfull.8673321302_8vhd.jpg",
     "https://i.etsystatic.com/54506076/r/il/3181a8/8721151367/il_fullxfull.8721151367_s3hi.jpg",
     "https://i.etsystatic.com/54506076/r/il/47f8be/8673321396/il_fullxfull.8673321396_sohj.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4602331440",
@@ -1779,7 +1796,8 @@
     "https://i.etsystatic.com/54506076/r/il/84e49e/8788154681/il_fullxfull.8788154681_hmdl.jpg",
     "https://i.etsystatic.com/54506076/r/il/9f2815/8788154767/il_fullxfull.8788154767_lc7s.jpg",
     "https://i.etsystatic.com/54506076/r/il/f295cc/8788154845/il_fullxfull.8788154845_1wy4.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4598360332",
@@ -1867,7 +1885,8 @@
     "https://i.etsystatic.com/54506076/r/il/52049f/8734788254/il_fullxfull.8734788254_mg59.jpg",
     "https://i.etsystatic.com/54506076/r/il/aa40ae/8782618777/il_fullxfull.8782618777_swsw.jpg",
     "https://i.etsystatic.com/54506076/r/il/52e71e/8782618825/il_fullxfull.8782618825_zh49.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4594094089",
@@ -1955,7 +1974,8 @@
     "https://i.etsystatic.com/54506076/r/il/f83177/8673309456/il_fullxfull.8673309456_lv4m.jpg",
     "https://i.etsystatic.com/54506076/r/il/ecb81c/8673309524/il_fullxfull.8673309524_pn1k.jpg",
     "https://i.etsystatic.com/54506076/r/il/2a54f0/8673309570/il_fullxfull.8673309570_k9wp.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4594094949",
@@ -2043,7 +2063,8 @@
     "https://i.etsystatic.com/54506076/r/il/165949/8721139005/il_fullxfull.8721139005_7c2u.jpg",
     "https://i.etsystatic.com/54506076/r/il/d92b0f/8721139041/il_fullxfull.8721139041_nyg1.jpg",
     "https://i.etsystatic.com/54506076/r/il/045576/8721139093/il_fullxfull.8721139093_2fwx.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4593770988",
@@ -2131,7 +2152,8 @@
     "https://i.etsystatic.com/54506076/r/il/604c71/8782644293/il_fullxfull.8782644293_lrhu.jpg",
     "https://i.etsystatic.com/54506076/r/il/a8fb05/8734814060/il_fullxfull.8734814060_3q2o.jpg",
     "https://i.etsystatic.com/54506076/r/il/4b5e05/8734814130/il_fullxfull.8734814130_cfjo.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
   },
   {
    "id": "4605915280",
@@ -2219,7 +2241,379 @@
     "https://i.etsystatic.com/54506076/r/il/a7a672/8765177058/il_fullxfull.8765177058_5t0y.jpg",
     "https://i.etsystatic.com/54506076/r/il/593cf9/8765177126/il_fullxfull.8765177126_1j2g.jpg",
     "https://i.etsystatic.com/54506076/r/il/7415ea/8765177190/il_fullxfull.8765177190_6x77.jpg"
-   ]
+   ],
+   "cut": "{\"\":[0,1]}"
+  },
+  {
+   "id": "4617199410",
+   "slug": "chrome-acid-long-sleeve-tee",
+   "name": "Chrome Acid Long Sleeve Tee",
+   "cat": "Tops",
+   "note": "Chrome star on the chest and cuff, The World Is Yours in liquid chrome across the back.",
+   "price": 34.99,
+   "etsy": "https://www.etsy.com/listing/4617199410/chrome-acid-long-sleeve-tee",
+   "img": "chrome-acid-long-sleeve-tee",
+   "colours": null,
+   "fabric": "100% cotton",
+   "gsm": 250,
+   "fit": "Oversized",
+   "finish": "Vintage wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      28.35,
+      29.13,
+      29.92,
+      30.71,
+      31.5
+     ],
+     "cm": [
+      72.0,
+      74.0,
+      76.0,
+      78.0,
+      80.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      22.44,
+      23.23,
+      24.02,
+      24.8,
+      25.59
+     ],
+     "cm": [
+      57.0,
+      59.0,
+      61.0,
+      63.0,
+      65.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      22.83,
+      23.43,
+      24.02,
+      24.61,
+      25.2
+     ],
+     "cm": [
+      58.0,
+      59.5,
+      61.0,
+      62.5,
+      64.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      24.02,
+      24.41,
+      24.8,
+      25.2,
+      25.59
+     ],
+     "cm": [
+      61.0,
+      62.0,
+      63.0,
+      64.0,
+      65.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/ca12ea/8857592128/il_fullxfull.8857592128_hdt6.jpg",
+    "https://i.etsystatic.com/54506076/r/il/091096/8857592214/il_fullxfull.8857592214_nu6x.jpg",
+    "https://i.etsystatic.com/54506076/r/il/75723c/8905365645/il_fullxfull.8905365645_95nq.jpg"
+   ],
+   "shots": [
+    0,
+    1
+   ],
+   "chart": 2,
+   "doubts": [],
+   "added": "2026-11-14",
+   "hidden": true,
+   "cut": "{\"\":[0,1]}"
+  },
+  {
+   "id": "4612792096",
+   "slug": "signature-zip-up",
+   "name": "Signature Zip Up",
+   "cat": "Hoodies",
+   "note": "The looping True Offline script on the chest and wide across the back, in two washed colours.",
+   "price": 45.99,
+   "etsy": "https://www.etsy.com/listing/4612792096/signature-zip-up",
+   "img": "signature-zip-up",
+   "colours": [
+    {
+     "name": "Royal Blue",
+     "key": "royal-blue"
+    },
+    {
+     "name": "Black",
+     "key": "black"
+    }
+   ],
+   "fabric": "53% polyester, 42% cotton, 5% other",
+   "gsm": 355,
+   "fit": "Loose",
+   "finish": "Vintage wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      24.8,
+      25.39,
+      25.98,
+      26.57,
+      27.17
+     ],
+     "cm": [
+      63.0,
+      64.5,
+      66.0,
+      67.5,
+      69.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      22.44,
+      23.23,
+      24.02,
+      24.8,
+      25.59
+     ],
+     "cm": [
+      57.0,
+      59.0,
+      61.0,
+      63.0,
+      65.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      24.41,
+      25.2,
+      25.98,
+      26.77,
+      27.56
+     ],
+     "cm": [
+      62.0,
+      64.0,
+      66.0,
+      68.0,
+      70.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      22.44,
+      22.83,
+      23.23,
+      23.62,
+      24.02
+     ],
+     "cm": [
+      57.0,
+      58.0,
+      59.0,
+      60.0,
+      61.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "royal-blue": [
+     1,
+     3
+    ],
+    "black": [
+     0,
+     2
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/87ee8e/8821166614/il_fullxfull.8821166614_6kxb.jpg",
+    "https://i.etsystatic.com/54506076/r/il/f736e4/8821166686/il_fullxfull.8821166686_2uk0.jpg",
+    "https://i.etsystatic.com/54506076/r/il/741ab9/8821166732/il_fullxfull.8821166732_3gma.jpg",
+    "https://i.etsystatic.com/54506076/r/il/d1c2d8/8821166786/il_fullxfull.8821166786_lg1b.jpg",
+    "https://i.etsystatic.com/54506076/r/il/256187/8868974607/il_fullxfull.8868974607_kxwt.jpg"
+   ],
+   "shots": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "chart": 4,
+   "doubts": [],
+   "added": "2026-11-14",
+   "hidden": true,
+   "cut": "{\"black\":[0,2],\"royal-blue\":[1,3]}"
+  },
+  {
+   "id": "4614470056",
+   "slug": "signature-oversized-tee",
+   "name": "Signature Oversized Tee",
+   "cat": "Tops",
+   "note": "The looping script on the chest and a run of four-point stars down the back.",
+   "price": 25.99,
+   "etsy": "https://www.etsy.com/listing/4614470056/signature-oversized-tee",
+   "img": "signature-oversized-tee",
+   "colours": null,
+   "fabric": "100% cotton",
+   "gsm": 260,
+   "fit": "Loose",
+   "finish": "Midweight",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL",
+    "3XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      26.57,
+      27.36,
+      28.35,
+      29.33,
+      30.12,
+      30.71
+     ],
+     "cm": [
+      67.5,
+      69.5,
+      72.0,
+      74.5,
+      76.5,
+      78.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      18.9,
+      19.88,
+      20.87,
+      21.85,
+      22.83,
+      23.82
+     ],
+     "cm": [
+      48.0,
+      50.5,
+      53.0,
+      55.5,
+      58.0,
+      60.5
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      19.69,
+      20.67,
+      21.65,
+      22.64,
+      23.62,
+      24.61
+     ],
+     "cm": [
+      50.0,
+      52.5,
+      55.0,
+      57.5,
+      60.0,
+      62.5
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      8.46,
+      8.66,
+      8.86,
+      9.06,
+      9.25,
+      9.45
+     ],
+     "cm": [
+      21.5,
+      22.0,
+      22.5,
+      23.0,
+      23.5,
+      24.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/d80c9b/8834922772/il_fullxfull.8834922772_e22v.jpg",
+    "https://i.etsystatic.com/54506076/r/il/e94d01/8834923072/il_fullxfull.8834923072_mfbh.jpg",
+    "https://i.etsystatic.com/54506076/r/il/44a559/8882717643/il_fullxfull.8882717643_i361.jpg"
+   ],
+   "shots": [
+    0,
+    1
+   ],
+   "chart": 2,
+   "doubts": [],
+   "added": "2026-11-14",
+   "hidden": true,
+   "cut": "{\"\":[0,1]}"
   }
- ]
+ ],
+ "queue": [],
+ "problems": [],
+ "built": "2026-11-15 18:32 UTC"
 }
