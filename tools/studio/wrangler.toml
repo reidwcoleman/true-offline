@@ -1,0 +1,7 @@
+# Cloudflare Worker that holds the studio's GitHub token. See tools/studio/SETUP.md.
+# The secrets (GH_TOKEN, STUDIO_PASS) are NOT kept here — they are set once after deploy, with
+#   npx wrangler secret put GH_TOKEN
+#   npx wrangler secret put STUDIO_PASS
+name = "true-offline-studio"
+main = "worker.js"
+compatibility_date = "2025-01-01"
