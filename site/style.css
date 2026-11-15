@@ -125,7 +125,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .cta:hover .cta-arrow{transform:translateY(3px)}
 
 /* the showcase */
-.turn{position:relative;height:calc(100svh * 5.4);background:var(--ink)}
+.turn{position:relative;height:calc(100svh * 1.35 * var(--stops,4));background:var(--ink)}
 .turn-pin{position:sticky;top:0;height:100svh;min-height:600px;overflow:hidden;display:flex;justify-content:space-between;padding:84px var(--gut) 32px;gap:var(--gut);background:var(--grain),var(--ink)}
 .turn-word{position:absolute;inset:0;z-index:0;pointer-events:none}
 .turn-word span{position:absolute;left:50%;top:50%;font-size:25vw;white-space:nowrap;color:var(--tint);opacity:0;will-change:transform,opacity}
@@ -418,7 +418,7 @@ html.inner.gl .gl-wrap{height:100svh;margin-bottom:calc(-1 * max(100svh,620px))}
 @media (pointer:coarse){
   :root{--grain:linear-gradient(transparent,transparent)}
   .gl .hero{height:250svh}
-  .turn{height:calc(100svh * 4.4)}
+  .turn{height:calc(100svh * 1.1 * var(--stops,4))}
   .gl-wrap::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(90% 70% at 50% 46%,transparent 55%,rgba(0,0,0,.55))}
   .tile-card{will-change:auto}
   .tile-card img,.reel-i img,.sheet-stage img{filter:none}

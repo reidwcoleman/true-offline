@@ -13,10 +13,36 @@ VIEWS = {'4607676717': {'black': (0, 2), 'ivory': (1, 3)}}
 CANVAS = (1200, 1500)                        # 4:5
 FILL = 0.90
 
+def plain_ground(rgb):
+    """The garment in a photo taken on a plain ground: everything the ground colour cannot reach from
+    the border. Returns None when the border is not one flat colour."""
+    edge = np.r_[rgb[:4].reshape(-1, 3), rgb[-4:].reshape(-1, 3), rgb[:, :4].reshape(-1, 3), rgb[:, -4:].reshape(-1, 3)].astype(np.int16)
+    ground = np.median(edge, axis=0)
+    if np.abs(edge - ground).max(axis=1).mean() > 6:
+        return None
+    near = np.abs(rgb.astype(np.int16) - ground).max(axis=2) <= 6
+    lab, _ = ni.label(near)
+    ids = np.unique(np.r_[lab[0], lab[-1], lab[:, 0], lab[:, -1]])
+    m = ni.binary_opening(ni.binary_fill_holes(~np.isin(lab, ids[ids > 0])), iterations=2)
+    lab, n = ni.label(m)
+    if not n:
+        return None
+    return (lab == 1 + np.argmax(ni.sum(m, lab, range(1, n + 1)))).astype(np.float32)
+
+
 def cut(path, tmp):
-    subprocess.run(['tools/vision', 'mask', path, tmp], check=True)
     rgb = np.array(Image.open(path).convert('RGB'))
-    m = np.array(Image.open(tmp).convert('L')).astype(np.float32) / 255
+    try:
+        subprocess.run(['tools/vision', 'mask', path, tmp], check=True, timeout=180, capture_output=True)
+        m = np.array(Image.open(tmp).convert('L')).astype(np.float32) / 255
+    except subprocess.CalledProcessError:
+        m = None                                       # Vision saw no subject, which happens with white on white
+    # A pale garment on a pale ground: Vision finds nothing, or only the print. The ground itself says where the garment is.
+    alt = plain_ground(rgb)
+    if m is None or (alt is not None and (m > .5).sum() < .7 * alt.sum()):
+        if alt is None or alt.mean() < .03:
+            raise ValueError(f'no garment found in {path}')
+        m = alt
     # Pure-white background reachable from the border is never garment, even if Vision kept it.
     white = rgb.min(axis=2) >= 248
     lab, _ = ni.label(white)

@@ -12,6 +12,10 @@
     `img/${p.img}${colour ? '-' + colour : ''}-${side}${small ? '-s' : ''}.webp`;
   const firstColour = p => (p.colours ? p.colours[0].key : '');
   const canMorph = !!document.startViewTransition && !calm;
+  /* What is on show, the order of the line and the starting fit all come from the catalog (data.js). */
+  const SHOW = (window.TO_SHOW || []).map(s => ({ ...s, p: bySlug(s.slug) })).filter(s => s.p);
+  const LINE = (window.TO_LINE || P.map(p => [p.slug, 0])).filter(([s]) => bySlug(s));
+  const FIT = window.TO_FIT || {};
 
   /* Touch screens scroll the body (see the head of index.html); everything else scrolls the window. */
   const inner = document.documentElement.classList.contains('inner');
@@ -127,13 +131,10 @@
 
   /* ---------- the showcase ---------- */
   function turnSection() {
-    const picks = [
-      ['graphic-ripped-boxy-hoodie', 'Pagoda', '#D6246E'],
-      ['deep-red-logo-zip-hoodie', 'Globe', '#B23A63'],
-      ['2018-wc-faded-hoodie', 'Rooster', '#E2521C'],
-      ['dirty-faded-flare-zip-hoodie', 'Dreamer', '#E9D3B0'],
-    ].map(([s, word, tint]) => ({ p: bySlug(s), word, tint }));
+    const picks = SHOW.slice(1).map(s => ({ p: s.p, word: s.word, tint: s.flat || s.tint }));
     const stage = $('[data-turn-stage]'), copy = $('[data-turn-copy]'), sec = $('#turn'), pin = $('.turn-pin');
+    sec.style.setProperty('--stops', picks.length);      // the section is as long as it has stops
+    if (!picks.length) { sec.hidden = true; return; }
     const words = $('[data-turn-words]'), ticks = $('[data-ticks]');
     ticks.innerHTML = picks.map(() => '<i><b></b></i>').join('');
     const bars = $$('b', ticks);
@@ -188,17 +189,11 @@
   }
 
   /* ---------- shop grid ---------- */
-  // Four bands of five: one feature tile, back print first, with four smalls mixed by type.
-  const ORDER = [
-    ['dirty-faded-flare-zip-hoodie', 1], 'graphic-ripped-boxy-hoodie', 'fury-logo-straight-sweatpants', 'logo-wash-jorts', 'japan-jersey-sweatshirt',
-    'sunfaded-hoodie', 'earth-barrel-leg-sweatpants', ['hibiscus-ivory-hoodie', 1], 'starfish-fleece-faded-shorts', 'autumn-waffle-knit',
-    ['2018-wc-faded-hoodie', 1], 'blossom-baggy-zip-hoodie', 'signature-straight-sweatpants', 'fleeced-sweatshirt', 'vintage-wash-denim-shorts',
-    'logo-grey-washed-box-hoodie', 'waistband-barrel-sweatpants', ['deep-red-logo-zip-hoodie', 1], 'logo-compression-shirt', 'darks-barrel-fleece-sweatpants',
-  ];
+  // Bands of five: one feature tile, back print first, with four smalls. tools/build_data.py lays them out.
   function shop() {
     const grid = $('[data-grid]'), chips = $('[data-chips]'), sorts = $('[data-sort]'), count = $('[data-count]');
-    grid.innerHTML = ORDER.map((o, i) => {
-      const big = Array.isArray(o), p = bySlug(big ? o[0] : o), c = firstColour(p);
+    grid.innerHTML = LINE.map(([slug, feature], i) => {
+      const big = !!feature, p = bySlug(slug), c = firstColour(p);
       const a = big ? 'back' : 'front', z = big ? 'front' : 'back';
       const set = side => `srcset="${src(p, side, c, true)} 720w,${src(p, side, c)} 1200w" sizes="${big ? '(max-width:1000px) 100vw,50vw' : '(max-width:760px) 50vw,(max-width:1000px) 33vw,25vw'}"`;
       return `<li class="tile${big ? ' big' : ''}" data-cat="${p.cat}" data-slug="${p.slug}" data-price="${p.price}" data-i="${i}" style="--glow:${(window.TO_GLOW || {})[p.img + (c ? '-' + c : '')] || '#ffbcd2'};--d:${(i % 4) * 70}ms"><a href="#/${p.slug}" data-cursor="View" data-open-side="${big ? 1 : 0}">
@@ -625,13 +620,12 @@
   /* ---------- pick the piece on the first screen ---------- */
   function picker() {
     const row = $('[data-picker]'), now = $('[data-picker-now]');
-    const list = [
-      ['Blossom', 'blossom-baggy-zip-hoodie'], ['Pagoda', 'graphic-ripped-boxy-hoodie'], ['Globe', 'deep-red-logo-zip-hoodie'],
-      ['Rooster', '2018-wc-faded-hoodie'], ['Dreamer', 'dirty-faded-flare-zip-hoodie'],
-    ];
-    row.innerHTML = list.map(([n], i) => `<button type="button" aria-pressed="${i === 0}" data-i="${i}">${n}</button>`).join('');
+    const list = SHOW;
+    if (!list.length) { $('[data-picker-wrap]').hidden = true; return; }
+    row.innerHTML = list.map((s, i) => `<button type="button" aria-pressed="${i === 0}" data-i="${i}">${s.word}</button>`).join('');
+    row.classList.toggle('many', list.length > 5);
     const show = i => {
-      const p = bySlug(list[i][1]);
+      const p = list[i].p;
       now.href = '#/' + p.slug;
       now.innerHTML = `<span>${p.name}</span><span>${money(p.price)}</span>`;
     };
@@ -795,8 +789,8 @@
       reels[key] = { now: () => items[Math.max(at, 0)], go, paint, size: items.length, at: () => at };
     }
     const start = () => {
-      reels.top.go(groups.top.findIndex(p => p.slug === 'blossom-baggy-zip-hoodie'), false);
-      reels.bottom.go(groups.bottom.findIndex(p => p.slug === 'darks-barrel-fleece-sweatpants'), false);
+      reels.top.go(Math.max(0, groups.top.findIndex(p => p.slug === FIT.top)), false);
+      reels.bottom.go(Math.max(0, groups.bottom.findIndex(p => p.slug === FIT.bottom)), false);
       reels.top.paint(); reels.bottom.paint(); render();
     };
     start();
@@ -884,7 +878,8 @@
   /* The 3D hero lives in hero.js. If WebGL or that file fails, the flat hero takes over. */
   const flatHero = () => {
     const img = $('[data-flat-src]');
-    img.src = img.dataset.flatSrc;
+    img.src = SHOW[0] ? src(SHOW[0].p, 'back', firstColour(SHOW[0].p)) : img.dataset.flatSrc;
+    if (SHOW[0]) img.alt = `Back of the ${SHOW[0].p.name}`;
     const poster = $('.gl-poster');
     if (poster) poster.remove();
     sky(); heroMotion();
@@ -896,6 +891,7 @@
       flatHero();
     };
   } else flatHero();
+  $$('[data-count-all]').forEach(e => { e.textContent = P.length; });
   barTone();
   turnSection();
   picker();

@@ -7,7 +7,12 @@ const [out, name = 'blossom', clay] = process.argv.slice(2);
 const b = await chromium.launch({ executablePath: process.env.CHROME, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const p = await b.newPage({ viewport: { width: 640, height: 520 } });
 p.on('pageerror', e => console.log('ERR', e.message));
-await p.goto(`http://localhost:4780/_viewer.html?g=${name}${clay ? '&clay=1' : ''}`);
+const fs = require('fs');
+const cat = JSON.parse(fs.readFileSync(new URL('../catalog.json', import.meta.url)));
+const extra = fs.existsSync('/tmp/to-mesh.json') ? JSON.parse(fs.readFileSync('/tmp/to-mesh.json')) : {};   // models not in the catalog yet
+const m = extra[name] || (cat.products.find(x => x.mesh && (x.mesh.key === name || x.slug === name)) || {}).mesh;
+if (!m) { console.log('no model called', name); process.exit(1); }
+await p.goto(`http://localhost:4780/_viewer.html?g=${m.key}&w=${m.w}&h=${m.h}&inner=${m.inner.slice(1)}${clay ? '&clay=1' : ''}`);
 await p.waitForFunction('window.ready');
 const shots = [[0, 0], [.6, 0], [1.25, 0], [Math.PI / 2, 0], [2.3, 0], [Math.PI, 0], [.5, .35], [.3, -.45]];
 const bufs = [];

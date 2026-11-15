@@ -7,7 +7,7 @@ const b = await chromium.launch({ executablePath: process.env.CHROME, args: ['--
 for (const [name, width, height, dsf] of [['tall', 390, 844, 2], ['wide', 1180, 820, 1]]) {
   const c = await b.newContext({ viewport: { width, height }, deviceScaleFactor: dsf, hasTouch: true, isMobile: true });
   const p = await c.newPage();
-  await p.goto('http://localhost:4780/', { waitUntil: 'load' });
+  await p.goto(process.env.SITE_URL || 'http://localhost:4780/', { waitUntil: 'load' });
   await p.waitForFunction(() => document.documentElement.dataset.hero === 'ready', null, { timeout: 30000 });
   await p.addStyleTag({ content: '.bar,.hero-foot,.gl-poster{display:none!important}' });
   await p.waitForTimeout(2600);

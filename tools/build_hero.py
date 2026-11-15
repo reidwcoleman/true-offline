@@ -1,4 +1,6 @@
-"""Real 3D hoodies from two flat photos. Run from the repo root: python3 tools/build_hero.py [name ...]
+"""Real 3D garments from two flat photos. Run from the repo root: python3 tools/build_hero.py [slug or mesh name ...]
+With no names it rebuilds every piece in catalog.json that already has a model. The studio calls
+model_for() to make one for any product put on show.
 
 Each garment becomes one watertight mesh, not a pair of displaced sheets:
 
@@ -24,20 +26,9 @@ sys.path.insert(0, 'tools')
 from build_assets import cut
 from crisp import crisp
 
-# name: listing id, vertex spacing, hood opening polygon (fractions of the crop),
-# neck line (fraction of height). The polygons were traced from the front photos by hand.
-G = {
-    'blossom': dict(id='4598064712', grid=11, neck=.30,
-                    hood=[(.42, .205), (.5, .198), (.58, .205), (.585, .26), (.555, .295), (.525, .335), (.5, .36), (.475, .335), (.445, .295), (.415, .26)]),
-    'pagoda':  dict(id='4604463792', grid=14, neck=.27,
-                    hood=[(.445, .21), (.5, .205), (.555, .21), (.545, .255), (.52, .30), (.5, .335), (.48, .30), (.455, .255)]),
-    'globe':   dict(id='4593331552', grid=14, neck=.15, lip=(22, .1),
-                    hood=[(.405, .055), (.46, .06), (.54, .06), (.595, .055), (.60, .085), (.565, .16), (.53, .205), (.5, .24), (.47, .205), (.435, .16), (.40, .085)]),
-    'rooster': dict(id='4593507922', grid=14, neck=.24,
-                    hood=[(.445, .228), (.5, .225), (.555, .228), (.55, .27), (.53, .31), (.5, .355), (.47, .31), (.45, .27)]),
-    'dreamer': dict(id='4594073163', grid=14, neck=.17, lip=(22, .1),
-                    hood=[(.365, .06), (.5, .05), (.635, .06), (.63, .09), (.585, .135), (.545, .175), (.5, .215), (.455, .175), (.415, .135), (.37, .09)]),
-}
+# Each product's model settings live in catalog.json under "mesh": vertex spacing (grid), the hood
+# opening polygon (fractions of the crop) and the neck line (fraction of height). The first five were
+# traced from the front photos by hand; for any other piece they are worked out from the outline.
 OUT = 'site/img/hero'
 DEBUG = os.environ.get('HERO_DEBUG')
 os.makedirs(OUT, exist_ok=True)
@@ -133,9 +124,74 @@ def extend_open_ends(C, pad):
     return ni.binary_closing(E, iterations=2) | C
 
 
+def extend_bottoms(C, pad):
+    """The same for trousers and shorts: the waist is open at the top and each leg at the bottom."""
+    h, w = C.shape
+    E = C.copy()
+    rows = np.where(C.any(1))[0]
+    top, bot = rows.min(), rows.max()
+    row = C[top + 5]
+    xs = np.where(row)[0]
+    E[:top + 6, xs.min():xs.max() + 1] = True
+    lab, n = ni.label(C[bot - 6][None, :])
+    for i in range(1, n + 1):
+        run = np.where(lab[0] == i)[0]
+        if len(run) < 6:
+            continue
+        x0, x1 = run.min(), run.max()
+        yy, xx = np.mgrid[:h, :w]
+        part = C & (xx >= x0 - 4) & (xx <= x1 + 4) & (yy > bot - max(30, (bot - top) * .22))
+        ys, xs2 = np.where(part)
+        p = np.c_[xs2, ys].astype(np.float32)
+        c = p.mean(0)
+        _, _, v = np.linalg.svd(p - c, full_matrices=False)
+        d = v[0] if v[0][1] > 0 else -v[0]
+        if d[1] < .8:
+            d = np.array([0., 1.])                     # a short leg has no clear direction: straight down
+        proj = (np.c_[xs2, ys] - c) @ d
+        band = proj > proj.max() - 9
+        bx, by = xs2[band], ys[band]
+        for k in np.arange(1, pad * .9, .7):
+            X = np.clip(np.round(bx + d[0] * k).astype(int), 0, w - 1)
+            Y = np.clip(np.round(by + d[1] * k).astype(int), 0, h - 1)
+            E[Y, X] = True
+    return ni.binary_closing(E, iterations=2) | C
+
+
+def auto_hood(C):
+    """Neck line and hood opening for a hoodie nobody has traced, from its outline alone.
+    Going down from the top, the outline widens over the crown of the hood, runs level down its
+    sides, then widens again at the shoulders. That second widening is the landmark: on the five
+    hand-traced pieces the neck line sits just under it and the opening straddles it. A hood laid
+    open has no crown, starts wide and gets a wider opening."""
+    h, w = C.shape
+    rows = np.where(C.any(1))[0]
+    top, bot = rows.min(), rows.max()
+    H = bot - top
+    width = ni.gaussian_filter1d(C.sum(1).astype(np.float32), 5)
+    grow = np.gradient(width)
+    y = top + int(H * .03)
+    while y < top + H * .3 and grow[y] > .9:
+        y += 1
+    crown = (y - top) / H
+    hood_w = width[y] / w
+    while y < top + H * .6 and grow[y:y + max(2, int(H * .02))].mean() <= 1.1:
+        y += 1
+    takeoff = float(np.clip((y - top) / H, .06, .4))
+    # fractions of the crop, which has a 24 px margin above the garment
+    f = lambda v: (top + v * H) / h
+    opened = crown < .06
+    a = hood_w * (.38 if opened else .27)
+    y0, y1 = f(max(.015, takeoff - .045)), f(takeoff + .09)
+    cx = .5
+    shield = [(cx - a, y0), (cx, y0 - .004), (cx + a, y0), (cx + a * 1.04, y0 + (y1 - y0) * .22), (cx + a * .62, y0 + (y1 - y0) * .62), (cx, y1),
+              (cx - a * .62, y0 + (y1 - y0) * .62), (cx - a * 1.04, y0 + (y1 - y0) * .22)]
+    return round(takeoff + .045, 4), [(round(x, 4), round(y, 4)) for x, y in shield], ([22, .1] if opened else [16, -.1])
+
+
 def volume(E, rmax):
     """Union of ellipsoids on the medial axis, returned as squared height."""
-    skel, dist = medial_axis(E, return_distance=True)
+    skel, dist = medial_axis(E, return_distance=True, rng=0)       # seeded, so a rebuild gives the same model
     ys, xs = np.where(skel & (dist > 2.5))
     T = np.zeros(E.shape, np.float32)
     order = np.argsort(dist[ys, xs])
@@ -185,9 +241,14 @@ def resample(c, step, smooth=2.5):
 
 
 def build(key, cfg):
+    """cfg: id, front and back photo numbers, kind ('hoodie', 'top' or 'bottom'), and optionally grid,
+    neck, hood and lip. Returns the settings it used plus the model's size, ready for catalog.json."""
     lid = cfg['id']
-    front = cut(f'raw/{lid}/0.jpg', 'raw/mask/_m.png')
-    back = cut(f'raw/{lid}/1.jpg', 'raw/mask/_m.png').transpose(Image.FLIP_LEFT_RIGHT)
+    kind = cfg.get('kind', 'hoodie')
+    cfg = dict(cfg)
+    cfg.setdefault('grid', 14)
+    front = cut(f"raw/{lid}/{cfg.get('front', 0)}.jpg", 'raw/mask/_m.png')
+    back = cut(f"raw/{lid}/{cfg.get('back', 1)}.jpg", 'raw/mask/_m.png').transpose(Image.FLIP_LEFT_RIGHT)
     box = None
     for im in (front, back):
         b = im.getchannel('A').point(lambda v: 255 if v > 12 else 0).getbbox()
@@ -203,6 +264,11 @@ def build(key, cfg):
     h, w = F.shape[:2]
 
     C = clean_mask(F[..., 3])
+    if kind != 'hoodie':
+        cfg['neck'], cfg['hood'] = -1., []             # nothing to round off or carve above the shoulders
+    elif not cfg.get('hood') or cfg.get('neck') is None:
+        cfg['neck'], cfg['hood'], cfg['lip'] = auto_hood(C)
+        cfg['traced'] = 'auto'
     ux, uy = register(clean_mask(B[..., 3]), C)
     Bw = warp(B, ux, uy)
     fit_iou = (clean_mask(Bw[..., 3]) & C).sum() / (clean_mask(Bw[..., 3]) | C).sum()
@@ -220,7 +286,7 @@ def build(key, cfg):
     s, P = 3, 110
     lo = cv2.resize(C.astype(np.uint8) * 255, (w // s, h // s), interpolation=cv2.INTER_AREA) > 127
     lo = np.pad(lo, P)
-    E = extend_open_ends(lo, P)
+    E = extend_bottoms(lo, P) if kind == 'bottom' else extend_open_ends(lo, P)
     rmax = .118 * w / s
     T = volume(E, rmax)
     T = T[P:-P, P:-P]
@@ -244,7 +310,8 @@ def build(key, cfg):
 
     # the body leans: hood back, sleeves forward
     zc = -sm(cfg['neck'] + .1, cfg['neck'] - .14, yn) * .34 * rmax * s
-    zc += sm(.52, .92, xn) * .26 * rmax * s
+    if kind != 'bottom':
+        zc += sm(.52, .92, xn) * .26 * rmax * s
     zc += sm(.55, 1, yn) * .05 * rmax * s
     zc = ni.gaussian_filter(zc, 18)
 
@@ -278,9 +345,10 @@ def build(key, cfg):
     NB = np.dstack([-.94 * gTx + 2 * zs * gBx, -.94 * gTy + 2 * zs * gBy, -2 * zs])
 
     # hood opening: the front wall falls away into the hood
-    poly = np.array([(x * w, y * h) for x, y in cfg['hood']], np.int32)
+    poly = np.array([(x * w, y * h) for x, y in cfg['hood']], np.int32).reshape(-1, 2)
     pm = np.zeros((h, w), np.uint8)
-    cv2.fillPoly(pm, [poly], 255)
+    if len(poly):
+        cv2.fillPoly(pm, [poly], 255)
     soft, fall = cfg.get('lip', (11, -.3))
     pm = ni.gaussian_filter(pm.astype(np.float32) / 255, soft)
     pmask = sm(.12, .8, pm)
@@ -370,7 +438,11 @@ def build(key, cfg):
         # consistent winding, y up
         a, b, c = V[tri[:, 0]], V[tri[:, 1]], V[tri[:, 2]]
         u, v = b - a, c - a
-        flip = u[:, 0] * v[:, 1] - u[:, 1] * v[:, 0] > 0
+        area2 = u[:, 0] * v[:, 1] - u[:, 1] * v[:, 0]
+        # Along a dead straight stretch of outline the triangulation makes flat, empty triangles. They
+        # would hide outline vertices from the seam test below and leave a gap between front and back.
+        tri, area2 = tri[np.abs(area2) > .5], area2[np.abs(area2) > .5]
+        flip = area2 > 0
         tri[flip] = tri[flip][:, [0, 2, 1]]
 
         # boundary edges of the triangulation are the true seam
@@ -446,7 +518,8 @@ def build(key, cfg):
     print(f'{key}: {w}x{h} verts {nV} (phone {mV}) tris {nT} open {nO} iou {fit_iou:.3f} depth {depth:.2f}w bin {size // 1024}KB', flush=True)
     if DEBUG:
         vis = (colF * .6 + 90).clip(0, 255).astype(np.uint8)
-        cv2.polylines(vis, [poly], True, (255, 40, 40), 2)
+        if len(poly):
+            cv2.polylines(vis, [poly], True, (255, 40, 40), 2)
         vis[(Eh ^ C)] = (40, 160, 255)
         for i in range(1, 10):
             cv2.line(vis, (w * i // 10, 0), (w * i // 10, h), (255, 255, 255), 1)
@@ -454,14 +527,32 @@ def build(key, cfg):
         Image.fromarray(vis).save(f'{DEBUG}/{key}-dbg.jpg', quality=80)
         zz = (z / z.max() * 255).astype(np.uint8)
         Image.fromarray(zz).save(f'{DEBUG}/{key}-z.jpg', quality=80)
-    return {'w': w, 'h': h, 'inner': '#%02x%02x%02x' % tuple(int(v) for v in inner)}
+    out = dict(key=key, kind=kind, grid=cfg['grid'], neck=round(float(cfg['neck']), 4), hood=[list(map(float, p)) for p in cfg['hood']],
+               w=w, h=h, inner='#%02x%02x%02x' % tuple(int(v) for v in inner), iou=round(float(fit_iou), 3))
+    for k in ('lip', 'traced'):
+        if cfg.get(k) is not None:
+            out[k] = list(cfg[k]) if k == 'lip' else cfg[k]
+    return out
 
 
-names = sys.argv[1:] or list(G)
-try:
-    sizes = json.load(open('tools/hero/size.json'))
-except Exception:
-    sizes = {}
-for key in names:
-    sizes[key] = build(key, G[key])
-json.dump(sizes, open('tools/hero/size.json', 'w'))
+def model_for(p):
+    """Builds (or rebuilds) the model for one catalog product and returns its "mesh" entry."""
+    old = p.get('mesh') or {}
+    f, b = next(iter(p['views'].values()))
+    kind = old.get('kind') or {'Hoodies': 'hoodie', 'Tops': 'top', 'Sweats': 'bottom', 'Shorts': 'bottom'}[p['cat']]
+    cfg = dict(id=p['id'], front=f, back=b, kind=kind)
+    for k in ('grid', 'neck', 'hood', 'lip'):
+        if old.get(k) is not None and not (k in ('neck', 'hood') and old.get('traced')):
+            cfg[k] = old[k]
+    return build(old.get('key') or p['slug'], cfg)
+
+
+if __name__ == '__main__':
+    path = 'catalog.json'
+    cat = json.load(open(path))
+    want = sys.argv[1:]
+    for p in cat['products']:
+        m = p.get('mesh')
+        if (want and (p['slug'] in want or (m and m['key'] in want))) or (not want and m):
+            p['mesh'] = model_for(p)
+    json.dump(cat, open(path, 'w'), indent=1, ensure_ascii=False)

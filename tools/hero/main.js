@@ -12,7 +12,6 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { garmentGeometry } from './garment.js';
 import GL from './glyphs.json';
-import SIZE from './size.json';
 
 const INK = 0x050508, COBALT = 0x0a35f0, VIOLET = 0x3a22a8, SAKURA = 0xff6f9f;
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
@@ -32,6 +31,15 @@ const LITE = coarse;
 const SMALL = LITE ? '-m' : '';
 const safari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iP(hone|ad|od)/.test(navigator.userAgent);
 const breathe = () => new Promise(r => setTimeout(r));            // lets the page paint and respond between steps
+
+// Which pieces are on show comes from the catalog (window.TO_SHOW in data.js, written by tools/build_data.py):
+// the first is the piece on the opening screen, the rest are the stops of the carousel. Each carries its
+// mesh name and size, its chrome word, two colours and what falls around it.
+const SHOW = (window.TO_SHOW || []).filter(s => s && s.key && s.w && s.h);
+const SIZE = Object.fromEntries(SHOW.map(s => [s.key, { w: s.w, h: s.h, inner: s.inner || '#111111' }]));
+const hexOf = (v, d) => { const n = parseInt(String(v || '').replace('#', ''), 16); return Number.isFinite(n) ? n : d; };
+const wordOf = w => String(w || '').toUpperCase().replace(/[^A-Z. ]/g, '').trim() || 'TRUE';
+const FALL_KINDS = ['petals', 'stars', 'feathers', 'flames'];
 
 function fail(err) {
   console.warn('hero fallback', err);
@@ -455,12 +463,12 @@ async function start() {
   }
 
   // The first hoodie downloads while everything else below is being built.
-  const firstLoad = garment('blossom');
+  const firstLoad = garment(SHOW[0].key);
   await breathe();
   scene.environment = studio(renderer);
   await breathe();
   const hoodie = new THREE.Group();              // holds whichever piece is on show
-  const W = H * SIZE.blossom.w / SIZE.blossom.h;
+  const W = H * SIZE[SHOW[0].key].w / SIZE[SHOW[0].key].h;
   const rig = new THREE.Group();                 // everything that leans with the pointer
   rig.add(hoodie);
   scene.add(rig);
@@ -637,9 +645,8 @@ async function start() {
   scene.add(far, near);
 
   /* featured hoodies, one per stop as you scroll */
-  const STOPS = [
-    ['pagoda', 'PAGODA', 0xff5f96, 0xff2f86], ['globe', 'GLOBE', 0xe6405a, 0x1f78ff], ['rooster', 'ROOSTER', 0xff6a2a, 0xff6a00], ['dreamer', 'DREAMER', 0xe9d3b0, 0xffc873],
-  ];
+  const STOPS = SHOW.slice(1).map(s => [s.key, wordOf(s.word), hexOf(s.tint, 0xff9fbe), hexOf(s.ink, 0xff6f9f), Math.max(0, FALL_KINDS.indexOf(s.fall))]);
+  const STAGGER = Math.min(.06, .18 / Math.max(1, STOPS.length - 1));   // the pieces join one after another, all in by the end
   const gallery = new THREE.Group();
   gallery.visible = false;
   scene.add(gallery);
@@ -662,11 +669,12 @@ async function start() {
   rays.position.set(0, .6, -5.5);
   rays.visible = false;
   scene.add(rays);
-  const stops = STOPS.map(([name, word, tint, ink]) => {
+  const stops = STOPS.map(([name, word, tint, ink, fall]) => {
     const pivot = new THREE.Group();
     pivot.visible = false;
     const wordRing = new THREE.Group();
-    wordRing.add(arc(word, { R: 8, cap: 1.26, mat: wordMats(ink), lean: .1, flat: FLAT }));
+    // long words shrink so the whole of it stays on the ring
+    wordRing.add(arc(word, { R: 8, cap: 1.26 * Math.min(1, 7.6 / Math.max(1, word.length)), mat: wordMats(ink), lean: .1, flat: FLAT }));
     const wordGlow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({
       map: wordGlowMap, color: ink, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false, opacity: 0,
     }));
@@ -677,7 +685,7 @@ async function start() {
     tilt.add(wordRing);
     pivot.add(tilt);
     gallery.add(pivot);
-    return { name, tint: new THREE.Color(tint), pivot, wordRing, wordGlow, tilt, body: null, born: 0, rise: 0 };
+    return { name, fall, tint: new THREE.Color(tint), pivot, wordRing, wordGlow, tilt, body: null, born: 0, rise: 0 };
   });
   const loadStops = async () => {
     for (const s of stops) {
@@ -687,12 +695,12 @@ async function start() {
   };
 
   /* The five pieces you can put on the hero. Spinning it round swaps the garment at the far side. */
-  const PIECES = [['blossom', 0xff9fbe], ['pagoda', 0xff5f96], ['globe', 0xe6405a], ['rooster', 0xff6a2a], ['dreamer', 0xe9d3b0]];
+  const PIECES = SHOW.map(s => [s.key, hexOf(s.tint, 0xff9fbe)]);
   const firstPiece = await firstLoad;
   hoodie.add(firstPiece);
   await breathe();
-  const heroModels = new Map([['blossom', firstPiece]]);
-  const heroTint = new THREE.Color(0xff9fbe);
+  const heroModels = new Map([[SHOW[0].key, firstPiece]]);
+  const heroTint = new THREE.Color(PIECES[0][1]);
   let swap = null, shownPiece = 0, wantPiece = 0;
   async function pick(i) {
     wantPiece = i;
@@ -1053,7 +1061,7 @@ async function start() {
         if (!on) return;
         s.born = Math.min(1, s.born + dt * 2.4);
         const a = (i + 1) * STEP + phi;
-        const join = calm ? 1 : silk(clamp((p - .44 - i * .06) / .38));
+        const join = calm ? 1 : silk(clamp((p - .44 - i * STAGGER) / .38));
         const focus = clamp(1 - Math.abs(idx - (i + 1)));
         const turnT = calm ? 1 : silk(clamp((local - .2) / .42));
         s.body.visible = join > .002;
@@ -1117,7 +1125,7 @@ async function start() {
     if (pointerOn) aim(mx, my);
     const fade = Math.exp(-dt * 1.9), PUSH = 2.5;
     const whirl = (dive * (1 - pull) * .5 + wide * 1.1) * dt;   // the petals turn with the carousel
-    fallNow = idx < 1.5 ? 0 : idx < 2.5 ? 1 : idx < 3.5 ? 2 : 3;
+    fallNow = idx < .5 || !stops.length ? 0 : stops[clamp(Math.round(idx) - 1, 0, stops.length - 1)].fall;
     const drawing = fallMask | 1 << fallNow;
     let used = 0;
     for (let i = 0; i < N_live; i++) {
@@ -1235,4 +1243,4 @@ async function start() {
   }
 }
 
-if (document.documentElement.classList.contains('gl')) start().catch(fail);
+if (document.documentElement.classList.contains('gl')) { if (SHOW.length) start().catch(fail); else fail('nothing on show'); }

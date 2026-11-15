@@ -53,10 +53,14 @@ ok('intro skipped on reload', !(await p.evaluate(() => document.documentElement.
 
 // data integrity
 const data = await p.evaluate(() => window.TO_PRODUCTS.map(x => ({ n: x.name, e: x.etsy, p: x.price, s: x.sizes.length, r: x.rows.length, full: x.rows.every(r => r.inch.length === x.sizes.length && r.cm.length === x.sizes.length) })));
-ok('20 products', data.length === 20);
+const N = data.length;
+const SHOWN = await p.evaluate(() => window.TO_SHOW.map(s => ({ key: s.key, slug: s.slug, word: s.word, fall: ['petals', 'stars', 'feathers', 'flames'].indexOf(s.fall) })));
+ok('at least 20 products', N >= 20, String(N));
+ok('between two and eight pieces on show', SHOWN.length >= 2 && SHOWN.length <= 8, String(SHOWN.length));
+ok('the count on the first screen matches', (await p.evaluate(() => document.querySelector('[data-count-all]').textContent)) === String(N));
 ok('every product has a real listing url + price', data.every(d => /^https:\/\/www\.etsy\.com\/listing\/\d+\//.test(d.e) && d.p > 0));
 ok('every size table is complete', data.every(d => d.s >= 4 && d.r >= 3 && d.full));
-ok('every product appears once in the grid', await p.evaluate(() => new Set([...document.querySelectorAll('.tile')].map(t => t.dataset.slug)).size === 20 && !document.querySelector('.tile a[href="#/undefined"]')));
+ok('every product appears once in the grid', await p.evaluate(() => new Set([...document.querySelectorAll('.tile')].map(t => t.dataset.slug)).size === window.TO_PRODUCTS.length && !document.querySelector('.tile a[href="#/undefined"]')));
 
 // removed on request: Up close and the rear ring text
 ok('Up close is gone', await p.evaluate(() => !document.querySelector('#closeup,[data-close-track],.cc') && !/up close/i.test(document.body.innerText)));
@@ -65,7 +69,7 @@ ok('Raleigh is off the ring', !/RALEIGH/.test(await p.evaluate(() => fetch('hero
 // every garment is one closed mesh: an edge is shared by two faces, or it is seam, or a listed open end
 const meshes = await p.evaluate(async () => {
   const out = {};
-  for (const n of ['blossom', 'pagoda', 'globe', 'rooster', 'dreamer']) {
+  for (const n of window.TO_SHOW.map(s => s.key)) {
     const buf = await fetch(`img/hero/${n}.bin`).then(r => r.arrayBuffer());
     const [nV, nT, nE] = new Uint32Array(buf, 0, 4);
     let o = 16;
@@ -92,9 +96,11 @@ for (const [n, m] of Object.entries(meshes)) ok(`${n} mesh is closed`, m.bad ===
 
 // the hero reacts
 await p.evaluate(() => scrollTo({ top: 0, behavior: 'instant' })); await p.waitForTimeout(700);
-await p.click('[data-picker] button:nth-child(3)'); await p.waitForTimeout(1500);
-ok('picker puts the Globe on the hero', (await p.evaluate(() => window.TO_hero.state().piece)) === 'globe');
-ok('picker names the piece and links to it', await p.evaluate(() => { const a = document.querySelector('[data-picker-now]'); return /Deep Red/i.test(a.textContent) && a.getAttribute('href') === '#/deep-red-logo-zip-hoodie'; }));
+const third = SHOWN[Math.min(2, SHOWN.length - 1)], thirdP = await p.evaluate(s => window.TO_PRODUCTS.find(x => x.slug === s), third.slug);
+await p.click(`[data-picker] button:nth-child(${Math.min(3, SHOWN.length)})`); await p.waitForTimeout(1500);
+ok('picker puts the chosen piece on the hero', (await p.evaluate(() => window.TO_hero.state().piece)) === third.key);
+await p.evaluate(x => { window.__n = x.name; window.__s = x.slug; }, thirdP);
+ok('picker names the piece and links to it', await p.evaluate(() => { const a = document.querySelector('[data-picker-now]'); return a.textContent.includes(window.__n) && a.getAttribute('href') === '#/' + window.__s; }));
 await p.screenshot({ path: `${out}/i-picker.jpg`, quality: 82, type: 'jpeg' });
 await p.click('[data-picker] button:nth-child(1)'); await p.waitForTimeout(1400);
 const vw = await p.evaluate(() => [innerWidth, innerHeight]);
@@ -110,9 +116,10 @@ ok('a tap on the wordmark flips a letter, or misses into petals', st0.flips + st
 await p.evaluate(() => document.querySelector('#shop').scrollIntoView({ behavior: 'instant' }));
 await p.waitForTimeout(900);
 const vis = () => p.evaluate(() => [...document.querySelectorAll('.tile')].filter(t => !t.hidden).length);
-ok('all 20 shown', await vis() === 20);
+ok('all pieces shown', await vis() === N);
+const CATS = await p.evaluate(() => ['Hoodies', 'Tops', 'Sweats', 'Shorts'].map(c => [c, window.TO_PRODUCTS.filter(x => x.cat === c).length]));
 await p.screenshot({ path: `${out}/i-shop.jpg`, quality: 82, type: 'jpeg' });
-for (const [c, n] of [['Hoodies', 8], ['Tops', 4], ['Sweats', 5], ['Shorts', 3]]) {
+for (const [c, n] of CATS) {
   await p.click(`[data-c="${c}"]`); await p.waitForTimeout(620);
   ok(`filter ${c}`, await vis() === n);
   const ind = await p.evaluate(() => { const i = document.querySelector('.chip-ind').getBoundingClientRect(), b = document.querySelector('.chips [aria-pressed=true]').getBoundingClientRect(); return Math.abs(i.left + i.width / 2 - b.left - b.width / 2); });
@@ -242,7 +249,7 @@ const bill = () => p.evaluate(() => {
   return { a, sum, want: '$' + (pr(a[0]) + pr(a[1])).toFixed(2) };
 });
 const b0 = await bill();
-ok('fit starts on the blossom hoodie', b0.a[0] === 'blossom-baggy-zip-hoodie', JSON.stringify(b0));
+ok('fit starts on the chosen top', b0.a[0] === await p.evaluate(() => window.TO_FIT.top), JSON.stringify(b0));
 ok('fit total adds up', b0.sum === b0.want, JSON.stringify(b0));
 await p.click('[data-reel="top"] ~ [data-go="1"]'); await p.waitForTimeout(900);
 const b1 = await bill();
@@ -258,7 +265,7 @@ const b2 = await bill();
 await p.click('[data-fit-shuffle]'); await p.waitForTimeout(1300);
 const b3 = await bill();
 ok('shuffle changes the fit', b3.a[0] !== b2.a[0] && b3.a[1] !== b2.a[1] && b3.sum === b3.want, JSON.stringify(b3));
-ok('every piece on the reels is a top or a bottom', await p.evaluate(() => document.querySelectorAll('[data-reel="top"] .reel-i').length === 12 && document.querySelectorAll('[data-reel="bottom"] .reel-i').length === 8));
+ok('every piece on the reels is a top or a bottom', await p.evaluate(() => document.querySelectorAll('[data-reel="top"] .reel-i').length === window.TO_PRODUCTS.filter(x => x.cat === 'Hoodies' || x.cat === 'Tops').length && document.querySelectorAll('[data-reel="bottom"] .reel-i').length === window.TO_PRODUCTS.filter(x => x.cat === 'Sweats' || x.cat === 'Shorts').length));
 await p.screenshot({ path: `${out}/i-fit.jpg`, quality: 82, type: 'jpeg' });
 await p.click('[data-fit-bill] a'); await p.waitForTimeout(700);
 ok('a fit piece opens its sheet', await p.isVisible('[data-sheet]'));
@@ -341,10 +348,10 @@ await ctx.close();
   const f = await fc.newPage();
   await f.goto(URL, { waitUntil: 'load' });
   await f.waitForFunction(() => document.documentElement.dataset.stops === 'ready', null, { timeout: 25000 });
-  const at = async i => { await f.evaluate(k => { const t = document.querySelector('.turn'), r = t.getBoundingClientRect(); scrollTo({ top: scrollY + r.top + (r.height - innerHeight) * (k + .5) / 4, behavior: 'instant' }); }, i); await f.waitForTimeout(900); return f.evaluate(() => window.TO_hero.state().fall); };
+  const at = async i => { await f.evaluate(k => { const t = document.querySelector('.turn'), r = t.getBoundingClientRect(); scrollTo({ top: scrollY + r.top + (r.height - innerHeight) * (k + .5) / (window.TO_SHOW.length - 1), behavior: 'instant' }); }, i); await f.waitForTimeout(900); return f.evaluate(() => window.TO_hero.state().fall); };
   const falls = [await f.evaluate(() => window.TO_hero.state().fall)];
-  for (let i = 0; i < 4; i++) falls.push(await at(i));
-  ok('falls: petals on the first screen and Pagoda, then one of its own for each piece', falls.join() === '0,0,1,2,3', falls.join());
+  for (let i = 0; i < SHOWN.length - 1; i++) falls.push(await at(i));
+  ok('falls: petals on the first screen, then what each piece on show is set to drop', falls.join() === [0, ...SHOWN.slice(1).map(s => s.fall)].join(), falls.join());
   await fc.close();
 }
 

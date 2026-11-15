@@ -16,7 +16,7 @@ cd site && python3 -m http.server 4780
 - **Timelines use the stage height, never `innerHeight`.**
 - **On touch screens the body is the scroller** (`html.inner`), not the window. The address bar then never slides or snaps and there is no rubber band, so nothing can shift when a scroll stops. Use `Y()` and `scroller` in `app.js`, never `scrollY`.
 - **3D colour:** in the `cloth()` shader, strongly dyed fabric takes its hue from the photo, because the studio lights pushed a wine red to magenta. Greys and charcoals keep a soft tint from the lights, so they read slightly more colourful than the real garment. After changing the look, rerun `tools/poster.mjs`.
-- **Showcase falls and type:** `FALLS` in `main.js` holds what drops for each piece: petals (first screen and Pagoda), Globe stars, Rooster feathers, Dreamer flames. Each particle has one slot in all four meshes and shrinks away, then returns as the new kind. Each stop word has its own colour in `STOPS`. Keep the beams behind the pieces soft: hard wedges read as the Rising Sun flag on the Japan pieces.
+- **Showcase falls and type:** `FALLS` in `main.js` holds the four things that can drop: petals, stars, feathers, flames. Which one each piece gets, and its word and colours, come from the catalog (`TO_SHOW`). The first screen always has petals. Each particle has one slot in all four meshes and shrinks away, then returns as the new kind. Keep the beams behind the pieces soft: hard wedges read as the Rising Sun flag on the Japan pieces.
 - **Shop tile glow:** `tools/build_glow.py` samples each photo into `window.TO_GLOW` at the end of `site/data.js`. Rerun it after `tools/build_data.py`.
 - **Touch rules:** a finger always scrolls the page. The hoodie spins and a shop tile flips only on a clearly sideways swipe, and nothing in the shop animates against the scroll. `overflow-anchor:none` stops the browser nudging the page.
 - **Build a fit** draws every piece at one inches-to-pixels scale from its own size chart (`seat` and `inches` in `fit`).
@@ -29,26 +29,48 @@ cd site && python3 -m http.server 4780
 - **`wave`** makes `[data-wave]` type react to the pointer, and `[data-magnet]` buttons lean toward it.
 - **Turning a garment** in the shop and product sheet is a dissolve between the front and back cutouts while the width dips (`setTurn` in `app.js`).
 - **Grid to sheet** uses the View Transitions API, so the garment travels between them. Browsers without it simply open the sheet.
-- **The shop layout** is four bands of five, set by `ORDER` in `app.js`. Feature tiles are the `[slug, 1]` entries and lead with the back print. Filtering or sorting drops to a plain even grid.
+- **The shop layout** is bands of five, from `TO_LINE` in `data.js`. Feature tiles are the `[slug, 1]` entries and lead with the back print. Filtering or sorting drops to a plain even grid.
 - **The intro** is CSS only and plays once per visit, so a script failure can never leave it covering the page.
 - **`site/sw.js`** only exists to remove the service worker that earlier builds installed. It can go once nobody has that build.
 
-## Updating products
+## The studio
 
-Everything in `site/data.js` is generated. Prices, sizes and photos come from Etsy, and the names, categories and one-line notes live in the table in `tools/build_data.py`.
+```
+./studio.sh          # or double-click "Open Studio.command"
+```
+
+A small web app on this Mac (http://localhost:4781) for running the shop without touching code.
+
+- **Add a piece.** Paste an Etsy listing link, or press Add next to a listing under "New on your Etsy shop" (read from the shop's public feed). It reads the listing, downloads the photos, works out which is the front, the back and the size chart (and which photos belong to which colour), cuts the garment out, reads the size chart and adds the piece to the line. Then it opens the piece so the one-line note can be rewritten: that line is drafted from the Etsy text and is the one thing worth writing by hand.
+- **On show.** Choose which pieces are in the scrolling 3D section and in what order (two to eight). The first one opens the site. Each has a word, a glow colour, a word colour and what falls around it. A piece that has never been on show gets its 3D model built when the show is saved, about twenty seconds.
+- **The line.** Drag to reorder. Click a piece to edit its name, note, type, price, fabric and so on, to make it a big tile, to change which photos are used, or to remove it.
+- **Preview** shows the site with the changes. **Publish** lists what changed, then commits `catalog.json` and `site/` and pushes `main`, which deploys. Nothing is live until then.
+
+How it works:
+
+- **`catalog.json` is the one source of truth**: every product, the order of the line, what is on show, and each 3D model's settings. `tools/build_data.py` turns it into `site/data.js` (`TO_PRODUCTS`, `TO_LINE`, `TO_SHOW`, `TO_FIT`, `TO_GLOW`) and keeps the piece count and cache version in `site/index.html` right. The page and the 3D stage read everything from there; nothing about which pieces exist is written into `app.js` or `tools/hero/main.js` any more.
+- **Etsy turns away anything that is not a real browser** (plain requests get a 403 from its bot wall). `tools/studio/etsy.mjs` opens the listing in a real Chrome window with its own profile (`raw/.chrome`) and reads the page over the DevTools protocol. If Etsy asks for a human check, the window comes forward and the studio waits up to three minutes for it. The shop feed (`/shop/TrueOffline/rss`) needs no browser. Do not hammer Etsy with test fetches: a few quick ones in a row bring the check on.
+- **`tools/studio/pipeline.py`** is everything between the link and the product record. `tools/studio/server.py` is the web app: one job at a time, with a log the page polls. It listens on 127.0.0.1 only and refuses requests from other origins.
+- **Cutouts** use Apple Vision, as before. A pale garment on a white ground (the white tee) gives Vision nothing to find, so `plain_ground()` in `tools/build_assets.py` takes over: everything the background colour cannot reach from the border.
+- **3D models for any piece.** `tools/build_hero.py` builds hoodies, tops and bottoms. For a hoodie nobody has traced, the neck line and hood opening come from the outline (`auto_hood`): the row where the outline widens from hood to shoulders is the landmark, and on the five hand-traced pieces it lands within a few percent of where they were set by hand. Tops have no hood to carve. Trousers and shorts are open at the waist and at each leg (`extend_bottoms`). The first five keep their hand-traced settings in `catalog.json`.
+- **The grid** is laid out by `layout()` in `build_data.py`: bands of five, one big tile and four smalls, the big one alternating sides. A piece only gets its big tile while there are four smalls to go with it.
+- **The still that phones open on** (`img/poster-*.webp`) is retaken on publish when the opening piece changes. That step needs the Playwright test browser; if it is missing, publishing still works and says so.
+- The helper Vision tool hangs inside some command sandboxes. Run the studio and the build scripts from a normal terminal.
+
+## Rebuilding by hand
+
+The studio does all of this. The steps, for when something needs redoing:
 
 ```
 swiftc -O tools/vision.swift -o tools/vision   # once, macOS
-python3 tools/build_assets.py                  # raw/ photos -> site/img cutouts
+python3 tools/build_data.py                    # catalog.json -> site/data.js (add --bump for a new cache version)
+python3 tools/build_hero.py [slug ...]         # 3D models and maps; no names rebuilds every piece that has one
 python3 tools/build_grain.py                   # film grain tile
-python3 tools/parse_charts.py                  # size chart images -> raw/charts.json
-python3 tools/build_data.py                    # -> site/data.js
 ~/Shift/.venv/bin/python tools/hero/glyphs.py  # chrome letter outlines (needs fontTools and the Archivo source font)
-python3 tools/build_hero.py                    # 3D hoodie meshes and maps
 (cd tools/hero && npm install) && zsh tools/hero/build.sh   # bundle the hero
 ```
 
-`raw/` holds the downloaded Etsy photos and listing data and is not committed.
+`raw/` holds the downloaded Etsy photos and is not committed. Each product keeps its photo links in `catalog.json`, so they can be fetched again.
 
 ## Checks
 
@@ -57,12 +79,12 @@ With the local server running and `CHROME` pointing at a Chromium binary:
 ```
 node tools/shot.mjs <dir>       # screenshots of every section
 node tools/heroshot.mjs <dir>   # a tour of the 3D stage, the line and Build a fit on the real GPU, with a frame rate
-node tools/interact.mjs <dir>   # meshes, picker, filters, sorting, Build a fit, drag, keyboard, deep links, viewports
+node tools/interact.mjs <dir>   # meshes, picker, filters, sorting, Build a fit, drag, keyboard, deep links, viewports (reads counts from the data)
 ```
 
 ## Publishing
 
-Pushing `main` deploys `site/` to GitHub Pages through `.github/workflows/pages.yml`.
+Pushing `main` deploys `site/` to GitHub Pages through `.github/workflows/pages.yml`. The studio's Publish button does exactly that.
 
 ## Keep in mind
 

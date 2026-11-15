@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>True Offline Studio</title>
+<link rel="icon" href="/preview/img/star.svg" type="image/svg+xml">
+<style>
+@font-face{font-family:Archivo;src:url(/preview/fonts/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-style:normal;font-display:swap}
+@font-face{font-family:Archivo;src:url(/preview/fonts/archivo-italic.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-style:italic;font-display:swap}
+:root{
+  --ink:#08080B; --paper:#F2F2EE; --plate:#E8E8E3; --card:#FBFBF8; --cobalt:#0A35F0; --cobalt-d:#0729C4;
+  --t2:rgba(8,8,11,.64); --t3:rgba(8,8,11,.46); --line:rgba(8,8,11,.13); --line-2:rgba(8,8,11,.26);
+  --red:#C2261B; --green:#1B7A3E; --amber:#8A5A00;
+  --r1:6px; --r2:10px; --r3:16px;
+  --out:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box;margin:0}
+html{background:var(--paper);-webkit-text-size-adjust:100%}
+body{font-family:Archivo,system-ui,sans-serif;font-size:15px;line-height:1.45;color:var(--ink);-webkit-font-smoothing:antialiased;padding-bottom:96px}
+img{display:block;max-width:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--cobalt);outline-offset:2px;border-radius:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:20;background:rgba(242,242,238,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:16px;height:64px}
+.mark{display:flex;align-items:center;gap:10px;font-weight:800;font-style:italic;font-stretch:125%;font-size:17px;letter-spacing:-.01em;text-transform:uppercase;text-decoration:none}
+.mark svg{width:30px;height:18px;fill:var(--cobalt)}
+.mark small{font:500 13px/1 Archivo,system-ui;font-stretch:100%;font-style:normal;text-transform:none;letter-spacing:0;color:var(--t2)}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+/* buttons: one filled cobalt (publish), ink for the main action of a section, quiet for the rest */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:var(--r2);font-weight:600;font-size:14px;white-space:nowrap;transition:background .15s,transform .12s,opacity .15s,border-color .15s}
+.btn:active{transform:scale(.97)}
+.btn[disabled]{opacity:.45;cursor:default;transform:none}
+.btn-accent{background:var(--cobalt);color:#fff}
+.btn-accent:not([disabled]):hover{background:var(--cobalt-d)}
+.btn-ink{background:var(--ink);color:var(--paper)}
+.btn-ink:not([disabled]):hover{background:#26262d}
+.btn-quiet{border:1px solid var(--line-2)}
+.btn-quiet:not([disabled]):hover{background:rgba(8,8,11,.05)}
+.btn-text{min-height:32px;padding:0 8px;font-weight:600;font-size:13px;color:var(--t2);border-radius:var(--r1)}
+.btn-text:hover{color:var(--ink);background:rgba(8,8,11,.05)}
+.btn-danger{color:var(--red)}
+.btn-danger:hover{color:var(--red);background:rgba(194,38,27,.08)}
+
+section{padding:40px 0 0}
+.sec-h{display:flex;align-items:baseline;gap:12px;margin-bottom:4px}
+h2{font-size:24px;line-height:1.15;font-weight:800;font-stretch:112%;letter-spacing:-.015em}
+.count{font-size:13px;color:var(--t3);font-variant-numeric:tabular-nums}
+.sub{color:var(--t2);max-width:62ch;margin-bottom:16px}
+
+/* add */
+.add{display:flex;gap:8px}
+.field{flex:1;min-width:0;height:48px;padding:0 14px;border:1px solid var(--line-2);border-radius:var(--r2);background:var(--card);font-size:15px}
+.field::placeholder{color:var(--t3)}
+.field:focus{outline:2px solid var(--cobalt);outline-offset:0;border-color:transparent}
+.add .btn{min-height:48px;padding:0 20px}
+.err{display:flex;gap:8px;align-items:flex-start;margin-top:10px;color:var(--red);font-size:14px;font-weight:500}
+.err svg{flex:none;margin-top:2px}
+
+.job{margin-top:12px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r2);background:var(--card)}
+.job-h{display:flex;align-items:center;gap:10px;font-weight:600}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--line-2);border-top-color:var(--cobalt);animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(1turn)}}
+.steps{margin:8px 0 0 26px;padding:0;list-style:none;font-size:13px;color:var(--t3)}
+.steps li:last-child{color:var(--ink)}
+.steps li.ask{color:var(--amber);font-weight:600}
+.steps li.warn{color:var(--amber)}
+.steps li.done{color:var(--green);font-weight:600}
+
+.fresh{margin-top:24px}
+.fresh h3,.lab{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t2)}
+.fresh ul{list-style:none;padding:0;margin-top:8px;border-top:1px solid var(--line)}
+.fresh li{display:grid;grid-template-columns:56px minmax(0,1fr) auto auto;gap:14px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.fresh img{width:56px;height:56px;object-fit:cover;border-radius:var(--r1);background:var(--plate)}
+.fresh b{font-weight:600}
+.num{font-variant-numeric:tabular-nums;color:var(--t2)}
+.quiet-note{margin-top:10px;font-size:13px;color:var(--t3)}
+
+/* on show */
+.show{display:flex;gap:12px;overflow-x:auto;padding:4px 24px 16px;margin:0 -24px;scroll-snap-type:x proximity;scroll-padding:0 24px}
+.slot{flex:none;width:204px;border-radius:var(--r3);background:var(--ink);color:var(--paper);padding:12px;scroll-snap-align:start;position:relative;transition:transform .2s var(--out),opacity .2s}
+.slot.drag{opacity:.4}
+.slot.over{transform:translateX(8px)}
+.slot-top{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(246,246,242,.62)}
+.slot-art{position:relative;aspect-ratio:4/5;margin:6px 0 10px;border-radius:var(--r2);background:radial-gradient(60% 50% at 50% 50%,var(--tint),transparent 100%);cursor:grab}
+.slot-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:4%;filter:drop-shadow(0 10px 12px rgba(0,0,0,.5));pointer-events:none}
+.slot-art .tag{position:absolute;left:8px;bottom:8px;font-size:11px;font-weight:600;padding:3px 7px;border-radius:99px;background:rgba(246,246,242,.14);color:var(--paper)}
+.word{width:100%;height:40px;padding:0 10px;border-radius:var(--r1);border:1px solid rgba(246,246,242,.2);background:transparent;color:var(--ink-c,#fff);font-weight:900;font-style:italic;font-stretch:125%;font-size:18px;text-transform:uppercase;letter-spacing:-.01em}
+.slot-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.slot-row label{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(246,246,242,.7)}
+input[type=color]{appearance:none;-webkit-appearance:none;width:28px;height:28px;border-radius:50%;border:1px solid rgba(246,246,242,.3);padding:0;background:none;cursor:pointer;overflow:hidden}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}
+.slot select{flex:1;min-width:0;height:32px;border-radius:var(--r1);border:1px solid rgba(246,246,242,.2);background:var(--ink);color:var(--paper);padding:0 6px;font-size:13px}
+.icon{width:32px;height:32px;display:grid;place-items:center;border-radius:var(--r1);color:rgba(246,246,242,.7)}
+.icon:hover{background:rgba(246,246,242,.12);color:#fff}
+.icon[disabled]{opacity:.3;cursor:default;background:none}
+.slot-add{flex:none;width:204px;border-radius:var(--r3);border:1.5px dashed var(--line-2);display:grid;place-items:center;text-align:center;padding:16px;font-weight:600;color:var(--t2);min-height:200px;transition:background .15s,color .15s}
+.slot-add:hover{background:rgba(8,8,11,.04);color:var(--ink)}
+.show-foot{display:flex;align-items:center;gap:12px;min-height:40px}
+.show-foot p{font-size:13px;color:var(--t2)}
+
+/* the line */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:20px 12px;list-style:none;padding:0}
+.tile{position:relative;text-align:left;width:100%;border-radius:var(--r2);transition:opacity .2s,transform .2s var(--out)}
+.tile.drag{opacity:.35}
+.tile.over{transform:translateX(6px)}
+.plate{position:relative;aspect-ratio:4/5;border-radius:var(--r2);background:var(--plate);overflow:hidden}
+.plate img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:7%;transition:opacity .25s,transform .4s var(--out);pointer-events:none}
+.plate .b{opacity:0}
+.tile:hover .plate .f{opacity:0}
+.tile:hover .plate .b{opacity:1}
+.tile:hover .plate img{transform:scale(1.04)}
+.badges{position:absolute;left:6px;top:6px;display:flex;gap:4px;flex-wrap:wrap}
+.badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px;background:var(--ink);color:var(--paper)}
+.badge.new{background:var(--cobalt);color:#fff}
+.badge.check{background:#fff;color:var(--amber);border:1px solid rgba(138,90,0,.35)}
+.tile-n{margin-top:8px;font-weight:600;font-size:14px;line-height:1.25}
+.tile-m{font-size:13px;color:var(--t2);font-variant-numeric:tabular-nums}
+
+/* editor sheet */
+.scrim{position:fixed;inset:0;z-index:30;background:rgba(8,8,11,.38);opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;z-index:31;top:0;right:0;bottom:0;width:min(520px,100vw);background:var(--paper);transform:translateX(102%);visibility:hidden;transition:transform .3s var(--out),visibility 0s .3s;overflow-y:auto;overscroll-behavior:contain}
+.sheet.on{transform:none;visibility:visible;transition:transform .3s var(--out);box-shadow:-24px 0 48px rgba(8,8,11,.16)}
+.sheet-h{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:12px;padding:14px 20px;background:rgba(242,242,238,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.sheet-h h3{font-size:17px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.saved{font-size:12px;font-weight:600;color:var(--green);opacity:0;transition:opacity .2s}
+.saved.on{opacity:1}
+.x{width:36px;height:36px;display:grid;place-items:center;border-radius:50%}
+.x:hover{background:rgba(8,8,11,.07)}
+.sheet-b{padding:20px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pair figure{position:relative;aspect-ratio:4/5;border-radius:var(--r2);background:var(--plate)}
+.pair img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:6%}
+.pair figcaption{position:absolute;left:8px;top:8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t2)}
+.notice{margin-top:12px;padding:10px 12px;border-radius:var(--r2);background:#FFF6DC;color:#5C3D00;font-size:13px;line-height:1.4}
+.form{display:grid;gap:14px;margin-top:20px}
+.form label{display:grid;gap:5px}
+.form label > span{font-size:12px;font-weight:600;color:var(--t2)}
+.in{width:100%;min-height:40px;padding:8px 12px;border:1px solid var(--line-2);border-radius:var(--r2);background:var(--card)}
+.in:focus{outline:2px solid var(--cobalt);outline-offset:0;border-color:transparent}
+textarea.in{resize:vertical;min-height:64px;line-height:1.4}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.switch{display:flex!important;grid-template-columns:none;align-items:center;justify-content:space-between;gap:16px;padding:12px;border:1px solid var(--line);border-radius:var(--r2);cursor:pointer}
+.switch small{display:block;font-size:12px;color:var(--t2);font-weight:400}
+.switch b{font-weight:600;font-size:14px}
+.switch input{appearance:none;-webkit-appearance:none;flex:none;width:44px;height:26px;border-radius:99px;background:rgba(8,8,11,.2);position:relative;transition:background .15s;cursor:pointer}
+.switch input::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .18s var(--out)}
+.switch input:checked{background:var(--cobalt)}
+.switch input:checked::after{transform:translateX(18px)}
+.blk{margin-top:28px}
+.blk > .lab{display:block;margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:12px;color:var(--t2);font-weight:600}
+tbody th{font-weight:500}
+.shots{display:grid;gap:12px}
+.shots-row{display:flex;gap:6px;flex-wrap:wrap}
+.shot{position:relative;width:76px;height:76px;border-radius:var(--r1);overflow:hidden;border:2px solid transparent;background:var(--plate)}
+.shot img{width:100%;height:100%;object-fit:cover}
+.shot[aria-pressed=true]{border-color:var(--cobalt)}
+.shot i{position:absolute;left:4px;bottom:4px;font:600 10px/1 Archivo,system-ui;font-style:normal;padding:3px 5px;border-radius:99px;background:var(--cobalt);color:#fff}
+.shots p{font-size:13px;color:var(--t2)}
+.sheet-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:32px;padding-top:16px;border-top:1px solid var(--line)}
+
+/* picker and confirm */
+.pop{position:fixed;inset:0;z-index:40;display:none;place-items:center;padding:20px;background:rgba(8,8,11,.38)}
+.pop.on{display:grid}
+.pop-c{width:min(460px,100%);max-height:min(640px,90vh);overflow-y:auto;background:var(--paper);border-radius:var(--r3);padding:20px;box-shadow:0 24px 60px rgba(8,8,11,.28)}
+.pop-c h3{font-size:19px;font-weight:800;margin-bottom:4px}
+.pop-c > p{color:var(--t2);font-size:14px;margin-bottom:12px}
+.pick{list-style:none;padding:0;border-top:1px solid var(--line)}
+.pick button{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left;padding:8px 4px;border-bottom:1px solid var(--line)}
+.pick button:hover{background:rgba(8,8,11,.04)}
+.pick img{width:44px;height:55px;object-fit:contain;background:var(--plate);border-radius:var(--r1);padding:2px}
+.pick small{color:var(--t3);font-size:12px}
+.changes{list-style:none;padding:0;margin:0 0 16px;border-top:1px solid var(--line)}
+.changes li{padding:8px 0;border-bottom:1px solid var(--line);font-weight:500}
+.pop-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+
+.toast{position:fixed;z-index:50;left:50%;bottom:24px;translate:-50% 0;max-width:min(560px,92vw);padding:12px 16px;border-radius:var(--r2);background:var(--ink);color:var(--paper);font-weight:500;font-size:14px;box-shadow:0 12px 30px rgba(8,8,11,.3);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s var(--out);transform:translateY(8px)}
+.toast.on{opacity:1;transform:none;pointer-events:auto}
+.toast a{color:#9fb3ff;font-weight:600}
+.toast.bad{background:var(--red)}
+.empty{padding:32px 0;color:var(--t2)}
+.sk{border-radius:var(--r2);background:linear-gradient(90deg,var(--plate),#f0f0eb,var(--plate));background-size:200% 100%;animation:sk 1.2s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  .show{padding-left:16px;padding-right:16px;margin:0 -16px;scroll-padding:0 16px}
+  .mark small{display:none}
+  .add{flex-direction:column}
+  .fresh li{grid-template-columns:48px minmax(0,1fr) auto}
+  .fresh li .num{display:none}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation-duration:.01ms!important}.spin{animation-duration:1.6s!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="mark" href="/" aria-label="True Offline Studio">
+      <svg viewBox="0 0 332 199" aria-hidden="true"><path d="M135 0 137 74 332 60 147 114 150 195 87 147 17 199 57 127 0 82 90 78Z"/></svg>
+      <span>True Offline</span><small>Studio</small>
+    </a>
+    <div class="top-right">
+      <a class="btn btn-text" href="/preview/" target="_blank" rel="noopener" title="See your changes before anyone else does">Preview</a>
+      <button class="btn btn-accent" type="button" data-publish disabled>Nothing to publish</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section aria-labelledby="h-add">
+  <div class="sec-h"><h2 id="h-add">Add a piece</h2></div>
+  <p class="sub">Paste the link to an Etsy listing. The photos are cut out, the size chart is read and the piece joins the line, made the same way as the rest.</p>
+  <form class="add" data-add>
+    <label class="sr" for="url">Etsy listing link</label>
+    <input class="field" id="url" name="url" type="url" inputmode="url" placeholder="https://www.etsy.com/listing/…" autocomplete="off" spellcheck="false">
+    <button class="btn btn-ink" type="submit">Add piece</button>
+  </form>
+  <div data-add-error></div>
+  <div data-jobs></div>
+  <div class="fresh" data-fresh hidden></div>
+</section>
+
+<section aria-labelledby="h-show">
+  <div class="sec-h"><h2 id="h-show">On show</h2><span class="count" data-show-count></span></div>
+  <p class="sub">The pieces in the big scrolling 3D section, in order. The first one opens the site. Drag to reorder.</p>
+  <div class="show" data-show></div>
+  <div class="show-foot" data-show-foot></div>
+</section>
+
+<section aria-labelledby="h-line">
+  <div class="sec-h"><h2 id="h-line">The line</h2><span class="count" data-line-count></span></div>
+  <p class="sub">Every piece in the shop, in the order it appears. Drag to reorder, click one to edit it.</p>
+  <ul class="grid" data-grid></ul>
+</section>
+
+</main>
+
+<div class="scrim" data-scrim></div>
+<aside class="sheet" data-sheet aria-label="Edit piece" aria-hidden="true"></aside>
+<div class="pop" data-pop role="dialog" aria-modal="true"><div class="pop-c" data-pop-c></div></div>
+<div class="toast" data-toast role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const money = n => '$' + Number(n).toFixed(2);
+  const ICON = {
+    x: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M4 4l12 12M16 4 4 16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
+    left: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M12 4 6 10l6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    right: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="m8 4 6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    warn: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 3 1.5 17h17L10 3Zm0 5v4m0 2.5v.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  };
+  let S = null;                       // what the server knows
+  let show = [];                      // the show as edited here, saved with a button
+  let showDirty = false;
+  let editing = null;
+
+  const api = async (path, body) => {
+    let r;
+    try {
+      r = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } catch (e) {
+      throw new Error('The studio is not running. Start it again with studio.sh.');
+    }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'That did not work.');
+    return j;
+  };
+
+  let toastT = 0;
+  const toast = (html, bad, ms = 4200) => {
+    const t = $('[data-toast]');
+    t.innerHTML = html; t.classList.toggle('bad', !!bad); t.classList.add('on');
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms);
+  };
+  const fail = e => toast(esc(e.message), true, 7000);
+  const by = slug => S.products.find(p => p.slug === slug);
+
+  /* ---------- jobs ---------- */
+  const watching = new Map();
+  function watch(id, done) {
+    if (watching.has(id)) return;
+    watching.set(id, done);
+    const el = document.createElement('div');
+    el.className = 'job';
+    $('[data-jobs]').append(el);
+    const tick = async () => {
+      let j;
+      try { j = await api('/api/job/' + id); } catch (e) { el.remove(); watching.delete(id); return fail(e); }
+      const running = j.state === 'running' || j.state === 'waiting';
+      el.innerHTML = `<div class="job-h">${running ? '<span class="spin"></span>' : ''}<span>${esc(j.label)}${j.state === 'waiting' ? ' (waiting for the job before it)' : ''}</span></div>
+        <ol class="steps">${j.lines.map(l => `<li class="${l.kind}">${esc(l.text)}</li>`).join('')}</ol>
+        ${j.error ? `<p class="err">${ICON.warn}<span>${esc(j.error)}</span></p>` : ''}`;
+      if (running) return setTimeout(tick, 700);
+      watching.delete(id);
+      await refresh();
+      if (j.state === 'done') { setTimeout(() => el.remove(), 2600); done && done(j); }
+      else { const b = document.createElement('button'); b.className = 'btn btn-text'; b.textContent = 'Dismiss'; b.onclick = () => el.remove(); el.append(b); }
+    };
+    tick();
+  }
+
+  /* ---------- add ---------- */
+  const addErr = msg => { $('[data-add-error]').innerHTML = msg ? `<p class="err" role="alert">${ICON.warn}<span>${esc(msg)}</span></p>` : ''; };
+  async function add(url, btn) {
+    addErr('');
+    if (!/etsy\.com\/.*listing\/\d+/i.test(url)) return addErr('Paste a link to one Etsy listing. It looks like etsy.com/listing/1234567890/name.');
+    if (btn) btn.disabled = true;
+    try {
+      const { job } = await api('/api/add', { url });
+      $('#url').value = '';
+      watch(job, j => { loadFresh(); if (j.result && j.result.slug) { toast('Added. Give its one-line note a read.'); openSheet(j.result.slug); } });
+    } catch (e) { addErr(e.message); }
+    if (btn) btn.disabled = false;
+  }
+  $('[data-add]').addEventListener('submit', e => { e.preventDefault(); add($('#url').value.trim(), $('button', e.currentTarget)); });
+
+  async function loadFresh() {
+    const box = $('[data-fresh]');
+    let r;
+    try { r = await api('/api/shop'); } catch (e) { return; }
+    if (!r.items.length) {
+      box.hidden = false;
+      box.innerHTML = `<p class="quiet-note">${r.error ? esc(r.error) : 'Everything recent on your Etsy shop is already on the site.'}</p>`;
+      return;
+    }
+    box.hidden = false;
+    box.innerHTML = `<h3>New on your Etsy shop, not on the site yet</h3><ul>${r.items.map(i => `<li>
+      <img src="${esc(i.thumb || '')}" alt="" loading="lazy" referrerpolicy="no-referrer">
+      <b>${esc(i.name)}</b><span class="num">${i.price ? money(i.price) : ''}</span>
+      <button class="btn btn-quiet" type="button" data-fresh-add="${esc(i.url)}">Add</button></li>`).join('')}</ul>`;
+  }
+  $('[data-fresh]').addEventListener('click', e => { const b = e.target.closest('[data-fresh-add]'); if (b) { b.textContent = 'Adding'; add(b.dataset.freshAdd, b); } });
+
+  /* ---------- on show ---------- */
+  function drawShow() {
+    const box = $('[data-show]');
+    $('[data-show-count]').textContent = `${show.length} of 8`;
+    box.innerHTML = show.map((s, i) => {
+      const p = by(s.slug);
+      return `<article class="slot" draggable="true" data-i="${i}" style="--tint:${esc(s.tint)}66;--ink-c:${esc(s.ink)}">
+        <div class="slot-top"><span>${i === 0 ? 'Opening' : 'Stop ' + i}</span>
+          <span style="display:flex"><button class="icon" type="button" data-move="-1" ${i === 0 ? 'disabled' : ''} aria-label="Move ${esc(p.name)} earlier">${ICON.left}</button><button class="icon" type="button" data-move="1" ${i === show.length - 1 ? 'disabled' : ''} aria-label="Move ${esc(p.name)} later">${ICON.right}</button><button class="icon" type="button" data-drop ${show.length <= 2 ? 'disabled' : ''} aria-label="Take ${esc(p.name)} off show">${ICON.x}</button></span></div>
+        <div class="slot-art" title="${esc(p.name)}"><img src="${esc(p.back)}" alt="${esc(p.name)}">${p.model ? '' : '<span class="tag">3D model builds on save</span>'}</div>
+        <label class="sr" for="w${i}">Word shown with ${esc(p.name)}</label>
+        <input class="word" id="w${i}" data-word maxlength="10" value="${esc(s.word)}" autocomplete="off" spellcheck="false">
+        <div class="slot-row">
+          <label title="The glow around the piece"><input type="color" data-tint value="${esc(s.tint)}">Glow</label>
+          <label title="The colour of the word"><input type="color" data-ink value="${esc(s.ink)}">Word</label>
+        </div>
+        <div class="slot-row"><label class="sr" for="f${i}">What falls around it</label>
+          <select id="f${i}" data-fall>${S.falls.map(f => `<option value="${f}" ${f === s.fall ? 'selected' : ''}>${f[0].toUpperCase() + f.slice(1)} falling</option>`).join('')}</select></div>
+      </article>`;
+    }).join('') + (show.length < 8 ? '<button class="slot-add" type="button" data-show-add>Put another piece on show</button>' : '');
+    const foot = $('[data-show-foot]');
+    const builds = show.filter(s => !by(s.slug).model).length;
+    foot.innerHTML = showDirty
+      ? `<button class="btn btn-ink" type="button" data-show-save>Save the show</button><button class="btn btn-text" type="button" data-show-undo>Undo</button><p>${builds ? `${builds === 1 ? 'One piece needs' : builds + ' pieces need'} a 3D model, about twenty seconds each.` : 'Not saved yet.'}</p>`
+      : '';
+  }
+  const touchShow = () => { showDirty = true; drawShow(); };
+  const showBox = $('[data-show]');
+  showBox.addEventListener('click', async e => {
+    const slot = e.target.closest('.slot'), i = slot ? +slot.dataset.i : -1;
+    const mv = e.target.closest('[data-move]');
+    if (mv && !mv.disabled) { const j = i + +mv.dataset.move; [show[i], show[j]] = [show[j], show[i]]; return touchShow(); }
+    const dr = e.target.closest('[data-drop]');
+    if (dr && !dr.disabled) { show.splice(i, 1); return touchShow(); }
+    if (e.target.closest('[data-show-add]')) pickForShow();
+  });
+  showBox.addEventListener('input', e => {
+    const slot = e.target.closest('.slot'); if (!slot) return;
+    const s = show[+slot.dataset.i];
+    if (e.target.matches('[data-word]')) { e.target.value = e.target.value.replace(/[^A-Za-z. ]/g, ''); s.word = e.target.value; }
+    if (e.target.matches('[data-tint]')) { s.tint = e.target.value; slot.style.setProperty('--tint', s.tint + '66'); }
+    if (e.target.matches('[data-ink]')) { s.ink = e.target.value; slot.style.setProperty('--ink-c', s.ink); }
+    if (e.target.matches('[data-fall]')) s.fall = e.target.value;
+    if (!showDirty) { showDirty = true; const el = document.activeElement, id = el && el.id; drawShow(); if (id) { const n = document.getElementById(id); if (n) { n.focus(); if (n.setSelectionRange && n.type === 'text') n.setSelectionRange(n.value.length, n.value.length); } } }
+  });
+  let dragI = -1;
+  showBox.addEventListener('dragstart', e => { const s = e.target.closest('.slot'); if (!s) return; dragI = +s.dataset.i; s.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
+  showBox.addEventListener('dragend', () => { dragI = -1; $$('.slot', showBox).forEach(s => s.classList.remove('drag', 'over')); });
+  showBox.addEventListener('dragover', e => { const s = e.target.closest('.slot'); if (dragI < 0 || !s) return; e.preventDefault(); $$('.slot', showBox).forEach(x => x.classList.toggle('over', x === s && +s.dataset.i !== dragI)); });
+  showBox.addEventListener('drop', e => { const s = e.target.closest('.slot'); if (dragI < 0 || !s) return; e.preventDefault(); const to = +s.dataset.i; if (to !== dragI) { show.splice(to, 0, show.splice(dragI, 1)[0]); touchShow(); } });
+  $('[data-show-foot]').addEventListener('click', async e => {
+    if (e.target.closest('[data-show-undo]')) { show = structuredClone(S.showcase); showDirty = false; return drawShow(); }
+    const b = e.target.closest('[data-show-save]'); if (!b) return;
+    const blank = show.find(s => !s.word.trim());
+    if (blank) return toast(`${esc(by(blank.slug).name)} needs a word.`, true);
+    b.disabled = true;
+    try {
+      const r = await api('/api/showcase', { items: show });
+      showDirty = false;
+      if (r.job) watch(r.job, () => toast('The show is updated. Preview it, then publish.'));
+      else { await refresh(); toast('The show is updated. Preview it, then publish.'); }
+      drawShow();
+    } catch (err) { fail(err); b.disabled = false; }
+  });
+  function pickForShow() {
+    const on = new Set(show.map(s => s.slug));
+    const rest = S.products.filter(p => !on.has(p.slug));
+    pop(`<h3>Put a piece on show</h3><p>Pieces with a big back print work best.</p>
+      <ul class="pick">${rest.map(p => `<li><button type="button" data-pick="${esc(p.slug)}"><img src="${esc(p.back)}" alt="" loading="lazy"><span><b>${esc(p.name)}</b><br><small>${esc(p.cat)}${p.model ? '' : ' · 3D model builds on save'}</small></span><span class="num">${money(p.price)}</span></button></li>`).join('')}</ul>
+      <div class="pop-foot"><button class="btn btn-quiet" type="button" data-pop-close>Cancel</button></div>`);
+  }
+
+  /* ---------- the line ---------- */
+  function drawLine() {
+    const g = $('[data-grid]');
+    $('[data-line-count]').textContent = `${S.products.length} pieces`;
+    if (!S.products.length) { g.innerHTML = '<li class="empty">No pieces yet. Paste an Etsy link above to add the first one.</li>'; return; }
+    const on = new Set(S.showcase.map(s => s.slug));
+    g.innerHTML = S.products.map((p, i) => `<li><button class="tile" type="button" draggable="true" data-slug="${esc(p.slug)}" data-i="${i}" aria-label="Edit ${esc(p.name)}">
+      <div class="plate"><img class="f" src="${esc(p.front)}" alt="" loading="lazy"><img class="b" src="${esc(p.back)}" alt="" loading="lazy">
+        <span class="badges">${p.draft ? '<span class="badge new">New</span>' : ''}${p.feature ? '<span class="badge">Big tile</span>' : ''}${on.has(p.slug) ? '<span class="badge">On show</span>' : ''}${p.doubts.length ? '<span class="badge check">Check</span>' : ''}</span></div>
+      <p class="tile-n">${esc(p.name)}</p><p class="tile-m">${esc(p.cat)} · ${money(p.price)}</p></button></li>`).join('');
+  }
+  const grid = $('[data-grid]');
+  let dragSlug = null;
+  grid.addEventListener('click', e => { const t = e.target.closest('.tile'); if (t) openSheet(t.dataset.slug); });
+  grid.addEventListener('dragstart', e => { const t = e.target.closest('.tile'); if (!t) return; dragSlug = t.dataset.slug; t.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
+  grid.addEventListener('dragend', () => { dragSlug = null; $$('.tile', grid).forEach(t => t.classList.remove('drag', 'over')); });
+  grid.addEventListener('dragover', e => { const t = e.target.closest('.tile'); if (!dragSlug || !t) return; e.preventDefault(); $$('.tile', grid).forEach(x => x.classList.toggle('over', x === t && t.dataset.slug !== dragSlug)); });
+  grid.addEventListener('drop', e => {
+    const t = e.target.closest('.tile'); if (!dragSlug || !t || t.dataset.slug === dragSlug) return;
+    e.preventDefault();
+    moveInLine(dragSlug, S.products.findIndex(p => p.slug === t.dataset.slug));
+  });
+  async function moveInLine(slug, to) {
+    const order = S.products.map(p => p.slug);
+    order.splice(to, 0, order.splice(order.indexOf(slug), 1)[0]);
+    try { await api('/api/line', { order }); await refresh(); } catch (e) { fail(e); }
+  }
+
+  /* ---------- editor ---------- */
+  const sheet = $('[data-sheet]'), scrim = $('[data-scrim]');
+  function closeSheet() { editing = null; sheet.classList.remove('on'); scrim.classList.remove('on'); sheet.setAttribute('aria-hidden', 'true'); }
+  scrim.addEventListener('click', closeSheet);
+  function openSheet(slug) {
+    const p = by(slug); if (!p) return;
+    editing = slug;
+    const keys = Object.keys(p.views), i = S.products.indexOf(p);
+    sheet.innerHTML = `<div class="sheet-h"><h3>${esc(p.name)}</h3><span class="saved" data-saved>Saved</span><button class="x" type="button" data-close aria-label="Close">${ICON.x}</button></div>
+    <div class="sheet-b">
+      <div class="pair"><figure><img src="${esc(p.front)}" alt="Front"><figcaption>Front</figcaption></figure><figure><img src="${esc(p.back)}" alt="Back"><figcaption>Back</figcaption></figure></div>
+      ${p.draft ? '<p class="notice">The one-line note below was written from the Etsy listing. Say what is actually on the garment, in your own words.</p>' : ''}
+      ${p.doubts.length ? `<p class="notice">Worth a look: ${esc(p.doubts.join(', '))}.</p>` : ''}
+      <div class="form">
+        <label><span>Name</span><input class="in" data-f="name" value="${esc(p.name)}"></label>
+        <label><span>One-line note</span><textarea class="in" data-f="note" rows="2">${esc(p.note)}</textarea></label>
+        <div class="two">
+          <label><span>Type</span><select class="in" data-f="cat">${['Hoodies', 'Tops', 'Sweats', 'Shorts'].map(c => `<option ${c === p.cat ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+          <label><span>Price (USD)</span><input class="in" data-f="price" inputmode="decimal" value="${Number(p.price).toFixed(2)}"></label>
+        </div>
+        <div class="two">
+          <label><span>Fabric</span><input class="in" data-f="fabric" value="${esc(p.fabric)}"></label>
+          <label><span>Weight (gsm)</span><input class="in" data-f="gsm" inputmode="numeric" value="${esc(p.gsm)}"></label>
+        </div>
+        <div class="two">
+          <label><span>Fit</span><input class="in" data-f="fit" value="${esc(p.fit)}"></label>
+          <label><span>Finish</span><input class="in" data-f="finish" value="${esc(p.finish)}"></label>
+        </div>
+        <label class="switch"><span><b>Big tile in the line</b><small>Twice the size, back print first. One for every five pieces works best.</small></span><input type="checkbox" data-f="feature" ${p.feature ? 'checked' : ''}></label>
+      </div>
+      <div class="blk"><span class="lab">Size chart, inches</span>
+        ${p.rows.length ? `<table><thead><tr><th></th>${p.sizes.map(s => `<th>${esc(s)}</th>`).join('')}</tr></thead><tbody>${p.rows.map(r => `<tr><th>${esc(r.name)}</th>${r.inch.map(v => `<td>${Number(v).toFixed(1)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : '<p class="quiet-note">No size chart was found in the listing.</p>'}
+      </div>
+      ${p.shots.length > 2 || keys.length > 1 ? `<div class="blk"><span class="lab">Photos</span><div class="shots" data-shots>${keys.map(k => `<div><p>${k ? esc((p.colours.find(c => c.key === k) || {}).name || k) + ': ' : ''}tap the front, then the back.</p><div class="shots-row" data-k="${esc(k)}">${p.shots.map(n => `<button class="shot" type="button" data-n="${n}" aria-pressed="${p.views[k].includes(n)}"><img src="/raw/${esc(p.id)}/${n}.jpg" alt="Photo ${n + 1}" loading="lazy">${p.views[k][0] === n ? '<i>Front</i>' : p.views[k][1] === n ? '<i>Back</i>' : ''}</button>`).join('')}</div></div>`).join('')}</div></div>` : ''}
+      <div class="sheet-foot">
+        <button class="btn btn-quiet" type="button" data-first ${i === 0 ? 'disabled' : ''}>Move to the front of the line</button>
+        <a class="btn btn-text" href="${esc(p.etsy)}" target="_blank" rel="noopener">Open on Etsy</a>
+        <button class="btn btn-text btn-danger" type="button" data-remove style="margin-left:auto">Remove from the site</button>
+      </div>
+    </div>`;
+    sheet.scrollTop = 0;
+    sheet.classList.add('on'); scrim.classList.add('on'); sheet.setAttribute('aria-hidden', 'false');
+  }
+  let savedT = 0;
+  async function saveField(el) {
+    const p = by(editing); if (!p) return;
+    const k = el.dataset.f, v = el.type === 'checkbox' ? el.checked : el.value.trim();
+    if (String(p[k]) === String(v) || (k === 'price' && Number(v) === Number(p.price))) return;
+    try {
+      await api('/api/product', { slug: editing, fields: { [k]: v } });
+      await refresh();
+      const s = $('[data-saved]'); if (s) { s.classList.add('on'); clearTimeout(savedT); savedT = setTimeout(() => s.classList.remove('on'), 1600); }
+      if (k === 'name') { const h = $('.sheet-h h3'); if (h) h.textContent = v; }
+    } catch (e) { fail(e); el.focus(); }
+  }
+  sheet.addEventListener('change', e => { if (e.target.dataset.f) saveField(e.target); });
+  const picking = {};
+  sheet.addEventListener('click', async e => {
+    if (e.target.closest('[data-close]')) return closeSheet();
+    const p = by(editing); if (!p) return;
+    if (e.target.closest('[data-first]')) { await moveInLine(p.slug, 0); toast('Moved to the front of the line.'); return openSheet(p.slug); }
+    if (e.target.closest('[data-remove]')) {
+      return pop(`<h3>Remove ${esc(p.name)}?</h3><p>It comes off the site when you next publish. Its Etsy listing is not touched, and you can add it back with its link.</p>
+        <div class="pop-foot"><button class="btn btn-quiet" type="button" data-pop-close>Keep it</button><button class="btn btn-ink" type="button" data-remove-yes="${esc(p.slug)}" style="background:var(--red)">Remove</button></div>`);
+    }
+    const shot = e.target.closest('.shot');
+    if (shot) {
+      const row = shot.closest('[data-k]'), k = row.dataset.k, n = +shot.dataset.n;
+      const cur = picking[k] || (picking[k] = []);
+      cur.push(n);
+      $$('.shot', row).forEach(b => { const j = cur.indexOf(+b.dataset.n); b.setAttribute('aria-pressed', j > -1); const tag = $('i', b); if (tag) tag.remove(); if (j > -1) b.insertAdjacentHTML('beforeend', `<i>${j ? 'Back' : 'Front'}</i>`); });
+      if (cur.length < 2) return;
+      const views = structuredClone(p.views); views[k] = cur.slice(0, 2); delete picking[k];
+      if (views[k][0] === views[k][1]) return openSheet(p.slug);
+      try { const { job } = await api('/api/photos', { slug: p.slug, views }); const slug = p.slug; watch(job, () => { if (editing === slug) openSheet(slug); }); toast('Cutting out the new photos. This takes a little while.'); }
+      catch (err) { fail(err); openSheet(p.slug); }
+    }
+  });
+
+  /* ---------- small dialog ---------- */
+  const popEl = $('[data-pop]');
+  const pop = html => { $('[data-pop-c]').innerHTML = html; popEl.classList.add('on'); const f = $('button', popEl); if (f) f.focus(); };
+  const unpop = () => popEl.classList.remove('on');
+  popEl.addEventListener('click', async e => {
+    if (e.target === popEl || e.target.closest('[data-pop-close]')) return unpop();
+    const pk = e.target.closest('[data-pick]');
+    if (pk) {
+      unpop();
+      try { const s = await api('/api/suggest?slug=' + encodeURIComponent(pk.dataset.pick)); show.push(s); touchShow(); showBox.scrollTo({ left: showBox.scrollWidth, behavior: 'smooth' }); } catch (err) { fail(err); }
+      return;
+    }
+    const rm = e.target.closest('[data-remove-yes]');
+    if (rm) {
+      unpop();
+      try { await api('/api/remove', { slug: rm.dataset.removeYes }); closeSheet(); await refresh(true); loadFresh(); toast('Removed. Publish to take it off the live site.'); } catch (err) { fail(err); }
+      return;
+    }
+    if (e.target.closest('[data-publish-yes]')) {
+      unpop();
+      try { const { job } = await api('/api/publish', {}); watch(job, j => toast(`Published. <a href="${esc(j.result.live)}" target="_blank" rel="noopener">Open the live site</a> in about a minute.`, false, 12000)); } catch (err) { fail(err); }
+    }
+  });
+  addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (popEl.classList.contains('on')) unpop(); else if (editing) closeSheet(); });
+
+  /* ---------- publish ---------- */
+  const pub = $('[data-publish]');
+  function drawPublish() {
+    const n = S.pending.length;
+    pub.disabled = !n;
+    pub.textContent = n ? `Publish ${n} ${n === 1 ? 'change' : 'changes'}` : 'Nothing to publish';
+  }
+  pub.addEventListener('click', () => {
+    if (showDirty) return toast('Save or undo your changes to the show first.', true);
+    pop(`<h3>Publish to the live site?</h3><p>Everyone who visits will see this within about a minute.</p>
+      <ul class="changes">${S.pending.map(c => `<li>${esc(c)}</li>`).join('')}</ul>
+      <div class="pop-foot"><button class="btn btn-quiet" type="button" data-pop-close>Not yet</button><button class="btn btn-accent" type="button" data-publish-yes>Publish now</button></div>`);
+  });
+
+  /* ---------- load ---------- */
+  async function refresh(resetShow) {
+    S = await api('/api/state');
+    if (!showDirty || resetShow) { show = structuredClone(S.showcase); showDirty = false; }
+    else show = show.filter(s => by(s.slug));
+    drawShow(); drawLine(); drawPublish();
+    S.running.forEach(j => watch(j.id));
+  }
+  $('[data-grid]').innerHTML = Array.from({ length: 12 }, () => '<li><div class="sk" style="aspect-ratio:4/5"></div></li>').join('');
+  refresh().then(loadFresh).catch(e => { $('[data-grid]').innerHTML = `<li class="empty">${esc(e.message)}</li>`; });
+  addEventListener('beforeunload', e => { if (showDirty) e.preventDefault(); });
+})();
+</script>
+</body>
+</html>

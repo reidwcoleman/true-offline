@@ -1,8 +1,9 @@
 // Turntable for checking meshes. Not shipped. See tools/meshshot.mjs.
 import * as THREE from 'three';
 import { garmentGeometry } from './garment.js';
-import SIZE from './size.json';
 const q = new URLSearchParams(location.search), name = q.get('g') || 'blossom';
+// sizes come from catalog.json by way of tools/meshshot.mjs
+const SIZE = { [name]: { w: +q.get('w'), h: +q.get('h'), inner: '#' + (q.get('inner') || '111111') } };
 const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 r.setSize(innerWidth, innerHeight); r.toneMapping = THREE.ACESFilmicToneMapping;
 document.body.style.margin = 0; document.body.append(r.domElement);

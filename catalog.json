@@ -1,0 +1,2225 @@
+{
+ "line": [
+  "dirty-faded-flare-zip-hoodie",
+  "graphic-ripped-boxy-hoodie",
+  "fury-logo-straight-sweatpants",
+  "logo-wash-jorts",
+  "japan-jersey-sweatshirt",
+  "sunfaded-hoodie",
+  "earth-barrel-leg-sweatpants",
+  "hibiscus-ivory-hoodie",
+  "starfish-fleece-faded-shorts",
+  "autumn-waffle-knit",
+  "2018-wc-faded-hoodie",
+  "blossom-baggy-zip-hoodie",
+  "signature-straight-sweatpants",
+  "fleeced-sweatshirt",
+  "vintage-wash-denim-shorts",
+  "logo-grey-washed-box-hoodie",
+  "waistband-barrel-sweatpants",
+  "deep-red-logo-zip-hoodie",
+  "logo-compression-shirt",
+  "darks-barrel-fleece-sweatpants"
+ ],
+ "showcase": [
+  {
+   "slug": "blossom-baggy-zip-hoodie",
+   "word": "Blossom",
+   "tint": "#ff9fbe",
+   "ink": "#ff6f9f",
+   "fall": "petals",
+   "flat": "#FF9FBE"
+  },
+  {
+   "slug": "graphic-ripped-boxy-hoodie",
+   "word": "Pagoda",
+   "tint": "#ff5f96",
+   "ink": "#ff2f86",
+   "fall": "petals",
+   "flat": "#D6246E"
+  },
+  {
+   "slug": "deep-red-logo-zip-hoodie",
+   "word": "Globe",
+   "tint": "#e6405a",
+   "ink": "#1f78ff",
+   "fall": "stars",
+   "flat": "#B23A63"
+  },
+  {
+   "slug": "2018-wc-faded-hoodie",
+   "word": "Rooster",
+   "tint": "#ff6a2a",
+   "ink": "#ff6a00",
+   "fall": "feathers",
+   "flat": "#E2521C"
+  },
+  {
+   "slug": "dirty-faded-flare-zip-hoodie",
+   "word": "Dreamer",
+   "tint": "#e9d3b0",
+   "ink": "#ffc873",
+   "fall": "flames",
+   "flat": "#E9D3B0"
+  }
+ ],
+ "fit": {
+  "top": "blossom-baggy-zip-hoodie",
+  "bottom": "darks-barrel-fleece-sweatpants"
+ },
+ "products": [
+  {
+   "id": "4604463792",
+   "slug": "graphic-ripped-boxy-hoodie",
+   "name": "Graphic Ripped Boxy Hoodie",
+   "cat": "Hoodies",
+   "note": "Cherry blossom on the chest, a full pagoda print across the back, ripped hem.",
+   "price": 53.99,
+   "etsy": "https://www.etsy.com/listing/4604463792/graphic-ripped-boxy-hoodie",
+   "img": "graphic-ripped-boxy-hoodie",
+   "colours": null,
+   "fabric": "88% cotton, 12% polyester",
+   "gsm": 370,
+   "fit": "Oversized",
+   "finish": "Sunfade wash, ripped",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      24.41,
+      25.0,
+      25.59,
+      26.18,
+      26.77
+     ],
+     "cm": [
+      62.0,
+      63.5,
+      65.0,
+      66.5,
+      68.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      24.41,
+      25.0,
+      25.59,
+      26.18,
+      26.77
+     ],
+     "cm": [
+      62.0,
+      63.5,
+      65.0,
+      66.5,
+      68.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      27.17,
+      27.95,
+      28.74,
+      29.53,
+      30.31
+     ],
+     "cm": [
+      69.0,
+      71.0,
+      73.0,
+      75.0,
+      77.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      21.26,
+      21.65,
+      22.05,
+      22.44,
+      22.83
+     ],
+     "cm": [
+      54.0,
+      55.0,
+      56.0,
+      57.0,
+      58.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/d60478/8764969572/il_fullxfull.8764969572_fgsu.jpg",
+    "https://i.etsystatic.com/54506076/r/il/0ceb93/8764969734/il_fullxfull.8764969734_byk4.jpg",
+    "https://i.etsystatic.com/54506076/r/il/743ac2/8812787889/il_fullxfull.8812787889_9n7z.jpg"
+   ],
+   "mesh": {
+    "key": "pagoda",
+    "w": 1312,
+    "h": 1098,
+    "inner": "#131113",
+    "grid": 14,
+    "neck": 0.27,
+    "hood": [
+     [
+      0.445,
+      0.21
+     ],
+     [
+      0.5,
+      0.205
+     ],
+     [
+      0.555,
+      0.21
+     ],
+     [
+      0.545,
+      0.255
+     ],
+     [
+      0.52,
+      0.3
+     ],
+     [
+      0.5,
+      0.335
+     ],
+     [
+      0.48,
+      0.3
+     ],
+     [
+      0.455,
+      0.255
+     ]
+    ]
+   }
+  },
+  {
+   "id": "4607885005",
+   "slug": "sunfaded-hoodie",
+   "name": "Sunfaded Hoodie",
+   "cat": "Hoodies",
+   "note": "Script logo on the chest, white flames down both sleeves, a small star at the back hem.",
+   "price": 54.99,
+   "etsy": "https://www.etsy.com/listing/4607885005/sunfaded-hoodie",
+   "img": "sunfaded-hoodie",
+   "colours": null,
+   "fabric": "100% cotton",
+   "gsm": 400,
+   "fit": "Loose",
+   "finish": "Monkey wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      27.56,
+      28.35,
+      29.13,
+      29.92,
+      30.71
+     ],
+     "cm": [
+      70.0,
+      72.0,
+      74.0,
+      76.0,
+      78.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      22.44,
+      23.03,
+      23.62,
+      24.21,
+      24.8
+     ],
+     "cm": [
+      57.0,
+      58.5,
+      60.0,
+      61.5,
+      63.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      26.38,
+      27.17,
+      27.95,
+      28.74,
+      29.53
+     ],
+     "cm": [
+      67.0,
+      69.0,
+      71.0,
+      73.0,
+      75.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      24.02,
+      24.41,
+      24.8,
+      25.2,
+      25.59
+     ],
+     "cm": [
+      61.0,
+      62.0,
+      63.0,
+      64.0,
+      65.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/2aad9b/8781584330/il_fullxfull.8781584330_nv7t.jpg",
+    "https://i.etsystatic.com/54506076/r/il/3b7f76/8829411735/il_fullxfull.8829411735_rv3q.jpg",
+    "https://i.etsystatic.com/54506076/r/il/7d4769/8829411767/il_fullxfull.8829411767_em9d.jpg"
+   ]
+  },
+  {
+   "id": "4598064712",
+   "slug": "blossom-baggy-zip-hoodie",
+   "name": "Blossom Baggy Zip Hoodie",
+   "cat": "Hoodies",
+   "note": "Cherry blossom front and back, katakana and the Japanese flag.",
+   "price": 53.99,
+   "etsy": "https://www.etsy.com/listing/4598064712/blossom-baggy-zip-hoodie",
+   "img": "blossom-baggy-zip-hoodie",
+   "colours": null,
+   "fabric": "100% cotton",
+   "gsm": 360,
+   "fit": "Oversized",
+   "finish": "Vintage wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      24.41,
+      25.0,
+      25.59,
+      26.18,
+      26.77
+     ],
+     "cm": [
+      62.0,
+      63.5,
+      65.0,
+      66.5,
+      68.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      24.41,
+      25.0,
+      25.59,
+      26.18,
+      26.77
+     ],
+     "cm": [
+      62.0,
+      63.5,
+      65.0,
+      66.5,
+      68.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      27.17,
+      27.95,
+      28.74,
+      29.53,
+      30.31
+     ],
+     "cm": [
+      69.0,
+      71.0,
+      73.0,
+      75.0,
+      77.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      21.26,
+      21.65,
+      22.05,
+      22.44,
+      22.83
+     ],
+     "cm": [
+      54.0,
+      55.0,
+      56.0,
+      57.0,
+      58.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/b8909c/8782631337/il_fullxfull.8782631337_r0mo.jpg",
+    "https://i.etsystatic.com/54506076/r/il/13b12a/8734800864/il_fullxfull.8734800864_4lfe.jpg",
+    "https://i.etsystatic.com/54506076/r/il/640c6c/8734800894/il_fullxfull.8734800894_l9lv.jpg"
+   ],
+   "mesh": {
+    "key": "blossom",
+    "w": 1320,
+    "h": 970,
+    "inner": "#0e0d0e",
+    "grid": 11,
+    "neck": 0.3,
+    "hood": [
+     [
+      0.42,
+      0.205
+     ],
+     [
+      0.5,
+      0.198
+     ],
+     [
+      0.58,
+      0.205
+     ],
+     [
+      0.585,
+      0.26
+     ],
+     [
+      0.555,
+      0.295
+     ],
+     [
+      0.525,
+      0.335
+     ],
+     [
+      0.5,
+      0.36
+     ],
+     [
+      0.475,
+      0.335
+     ],
+     [
+      0.445,
+      0.295
+     ],
+     [
+      0.415,
+      0.26
+     ]
+    ]
+   }
+  },
+  {
+   "id": "4594092973",
+   "slug": "logo-grey-washed-box-hoodie",
+   "name": "Logo Grey Washed Box Hoodie",
+   "cat": "Hoodies",
+   "note": "Lowercase logo at the front hem, the globe logo across the back.",
+   "price": 45.99,
+   "etsy": "https://www.etsy.com/listing/4594092973/logo-grey-washed-box-hoodie",
+   "img": "logo-grey-washed-box-hoodie",
+   "colours": null,
+   "fabric": "53% polyester, 42% cotton, 5% other",
+   "gsm": 355,
+   "fit": "Oversized",
+   "finish": "Snow wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      27.56,
+      28.35,
+      29.13,
+      29.92,
+      30.71
+     ],
+     "cm": [
+      70.0,
+      72.0,
+      74.0,
+      76.0,
+      78.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      22.44,
+      23.03,
+      23.62,
+      24.21,
+      24.8
+     ],
+     "cm": [
+      57.0,
+      58.5,
+      60.0,
+      61.5,
+      63.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      26.38,
+      27.17,
+      27.95,
+      28.74,
+      29.53
+     ],
+     "cm": [
+      67.0,
+      69.0,
+      71.0,
+      73.0,
+      75.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      24.02,
+      24.41,
+      24.8,
+      25.2,
+      25.59
+     ],
+     "cm": [
+      61.0,
+      62.0,
+      63.0,
+      64.0,
+      65.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/ef2fa7/8673311362/il_fullxfull.8673311362_kghz.jpg",
+    "https://i.etsystatic.com/54506076/r/il/6fca51/8721141821/il_fullxfull.8721141821_4jl9.jpg",
+    "https://i.etsystatic.com/54506076/r/il/0e85eb/8721141867/il_fullxfull.8721141867_7s8d.jpg"
+   ]
+  },
+  {
+   "id": "4593331552",
+   "slug": "deep-red-logo-zip-hoodie",
+   "name": "Deep Red Logo Zip Hoodie",
+   "cat": "Hoodies",
+   "note": "Washed wine red, logo down the zip, pink and blue globe across the back.",
+   "price": 47.99,
+   "etsy": "https://www.etsy.com/listing/4593331552/zip-through-boxy-fleece-hoodie",
+   "img": "zip-through-boxy-fleece-hoodie",
+   "colours": null,
+   "fabric": "53% polyester, 42% cotton, 5% other",
+   "gsm": 355,
+   "fit": "Loose",
+   "finish": "Snow wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      24.8,
+      25.39,
+      25.98,
+      26.57,
+      27.17
+     ],
+     "cm": [
+      63.0,
+      64.5,
+      66.0,
+      67.5,
+      69.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      22.44,
+      23.23,
+      24.02,
+      24.8,
+      25.59
+     ],
+     "cm": [
+      57.0,
+      59.0,
+      61.0,
+      63.0,
+      65.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      24.41,
+      25.2,
+      25.98,
+      26.77,
+      27.56
+     ],
+     "cm": [
+      62.0,
+      64.0,
+      66.0,
+      68.0,
+      70.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      22.44,
+      22.83,
+      23.23,
+      23.62,
+      24.02
+     ],
+     "cm": [
+      57.0,
+      58.0,
+      59.0,
+      60.0,
+      61.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": true,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/5bafc8/8673342610/il_fullxfull.8673342610_dj4t.jpg",
+    "https://i.etsystatic.com/54506076/r/il/7c22ec/8721172445/il_fullxfull.8721172445_fnfz.jpg",
+    "https://i.etsystatic.com/54506076/r/il/487e26/8673342664/il_fullxfull.8673342664_q7f4.jpg"
+   ],
+   "mesh": {
+    "key": "globe",
+    "w": 1266,
+    "h": 1121,
+    "inner": "#2a1a1e",
+    "grid": 14,
+    "neck": 0.15,
+    "lip": [
+     22,
+     0.1
+    ],
+    "hood": [
+     [
+      0.405,
+      0.055
+     ],
+     [
+      0.46,
+      0.06
+     ],
+     [
+      0.54,
+      0.06
+     ],
+     [
+      0.595,
+      0.055
+     ],
+     [
+      0.6,
+      0.085
+     ],
+     [
+      0.565,
+      0.16
+     ],
+     [
+      0.53,
+      0.205
+     ],
+     [
+      0.5,
+      0.24
+     ],
+     [
+      0.47,
+      0.205
+     ],
+     [
+      0.435,
+      0.16
+     ],
+     [
+      0.4,
+      0.085
+     ]
+    ]
+   }
+  },
+  {
+   "id": "4594073163",
+   "slug": "dirty-faded-flare-zip-hoodie",
+   "name": "Dirty Faded Flare Zip Hoodie",
+   "cat": "Hoodies",
+   "note": "Cloud-dyed grey with a Dreamer flame print and cream burst, front and back.",
+   "price": 55.99,
+   "etsy": "https://www.etsy.com/listing/4594073163/dirty-faded-flare-zip-hoodie",
+   "img": "dirty-faded-flare-zip-hoodie",
+   "colours": null,
+   "fabric": "74.7% polyester, 21.2% cotton, 4.1% spandex",
+   "gsm": 410,
+   "fit": "Boxy",
+   "finish": "Dirty wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      22.83,
+      23.62,
+      24.41,
+      25.2,
+      25.98
+     ],
+     "cm": [
+      58.0,
+      60.0,
+      62.0,
+      64.0,
+      66.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      24.8,
+      25.59,
+      26.38,
+      27.17,
+      27.95
+     ],
+     "cm": [
+      63.0,
+      65.0,
+      67.0,
+      69.0,
+      71.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      24.02,
+      24.8,
+      25.59,
+      26.38,
+      27.17
+     ],
+     "cm": [
+      61.0,
+      63.0,
+      65.0,
+      67.0,
+      69.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      22.05,
+      22.44,
+      22.83,
+      23.23,
+      23.62
+     ],
+     "cm": [
+      56.0,
+      57.0,
+      58.0,
+      59.0,
+      60.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": true,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/7661c1/8721145763/il_fullxfull.8721145763_8bhs.jpg",
+    "https://i.etsystatic.com/54506076/r/il/147d43/8673315652/il_fullxfull.8673315652_siqa.jpg",
+    "https://i.etsystatic.com/54506076/r/il/f37f56/8673315700/il_fullxfull.8673315700_6k84.jpg"
+   ],
+   "mesh": {
+    "key": "dreamer",
+    "w": 1243,
+    "h": 1137,
+    "inner": "#474646",
+    "grid": 14,
+    "neck": 0.17,
+    "lip": [
+     22,
+     0.1
+    ],
+    "hood": [
+     [
+      0.365,
+      0.06
+     ],
+     [
+      0.5,
+      0.05
+     ],
+     [
+      0.635,
+      0.06
+     ],
+     [
+      0.63,
+      0.09
+     ],
+     [
+      0.585,
+      0.135
+     ],
+     [
+      0.545,
+      0.175
+     ],
+     [
+      0.5,
+      0.215
+     ],
+     [
+      0.455,
+      0.175
+     ],
+     [
+      0.415,
+      0.135
+     ],
+     [
+      0.37,
+      0.09
+     ]
+    ]
+   }
+  },
+  {
+   "id": "4593507922",
+   "slug": "2018-wc-faded-hoodie",
+   "name": "2018 WC Faded Hoodie",
+   "cat": "Hoodies",
+   "note": "Illustrated rooster and France 2018 champions print across the back.",
+   "price": 49.99,
+   "etsy": "https://www.etsy.com/listing/4593507922/2018-wc-faded-hoodie",
+   "img": "2018-wc-faded-hoodie",
+   "colours": null,
+   "fabric": "53% polyester, 42% cotton, 5% other",
+   "gsm": 355,
+   "fit": "Loose",
+   "finish": "Sunfade wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      24.8,
+      25.39,
+      25.98,
+      26.57,
+      27.17
+     ],
+     "cm": [
+      63.0,
+      64.5,
+      66.0,
+      67.5,
+      69.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      22.44,
+      23.23,
+      24.02,
+      24.8,
+      25.59
+     ],
+     "cm": [
+      57.0,
+      59.0,
+      61.0,
+      63.0,
+      65.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      24.41,
+      25.2,
+      25.98,
+      26.77,
+      27.56
+     ],
+     "cm": [
+      62.0,
+      64.0,
+      66.0,
+      68.0,
+      70.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      22.44,
+      22.83,
+      23.23,
+      23.62,
+      24.02
+     ],
+     "cm": [
+      57.0,
+      58.0,
+      59.0,
+      60.0,
+      61.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": true,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/dc0ff9/8799689820/il_fullxfull.8799689820_awwt.jpg",
+    "https://i.etsystatic.com/54506076/r/il/849bde/8847508765/il_fullxfull.8847508765_g8zw.jpg",
+    "https://i.etsystatic.com/54506076/r/il/537c9f/8799689920/il_fullxfull.8799689920_6qs8.jpg"
+   ],
+   "mesh": {
+    "key": "rooster",
+    "w": 1308,
+    "h": 1166,
+    "inner": "#424242",
+    "grid": 14,
+    "neck": 0.24,
+    "hood": [
+     [
+      0.445,
+      0.228
+     ],
+     [
+      0.5,
+      0.225
+     ],
+     [
+      0.555,
+      0.228
+     ],
+     [
+      0.55,
+      0.27
+     ],
+     [
+      0.53,
+      0.31
+     ],
+     [
+      0.5,
+      0.355
+     ],
+     [
+      0.47,
+      0.31
+     ],
+     [
+      0.45,
+      0.27
+     ]
+    ]
+   }
+  },
+  {
+   "id": "4603708191",
+   "slug": "hibiscus-ivory-hoodie",
+   "name": "Hibiscus Ivory Hoodie",
+   "cat": "Hoodies",
+   "note": "Red florals across the chest, back and sleeve on snow-washed ivory.",
+   "price": 49.99,
+   "etsy": "https://www.etsy.com/listing/4603708191/hibuscus-ivory-hoodie",
+   "img": "hibuscus-ivory-hoodie",
+   "colours": null,
+   "fabric": "53% polyester, 42% cotton, 5% other",
+   "gsm": 355,
+   "fit": "Oversized",
+   "finish": "Snow wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      27.56,
+      28.35,
+      29.13,
+      29.92,
+      30.71
+     ],
+     "cm": [
+      70.0,
+      72.0,
+      74.0,
+      76.0,
+      78.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      22.44,
+      23.03,
+      23.62,
+      24.21,
+      24.8
+     ],
+     "cm": [
+      57.0,
+      58.5,
+      60.0,
+      61.5,
+      63.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      26.38,
+      27.17,
+      27.95,
+      28.74,
+      29.53
+     ],
+     "cm": [
+      67.0,
+      69.0,
+      71.0,
+      73.0,
+      75.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      24.02,
+      24.41,
+      24.8,
+      25.2,
+      25.59
+     ],
+     "cm": [
+      61.0,
+      62.0,
+      63.0,
+      64.0,
+      65.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": true,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/f61e11/8746823296/il_fullxfull.8746823296_b7bd.jpg",
+    "https://i.etsystatic.com/54506076/r/il/e31969/8794649403/il_fullxfull.8794649403_id03.jpg",
+    "https://i.etsystatic.com/54506076/r/il/f73d39/8794649497/il_fullxfull.8794649497_buqx.jpg"
+   ]
+  },
+  {
+   "id": "4607676717",
+   "slug": "autumn-waffle-knit",
+   "name": "Autumn Waffle Knit",
+   "cat": "Tops",
+   "note": "Raglan crew with flames on both sleeves and a star at the chest.",
+   "price": 43.99,
+   "etsy": "https://www.etsy.com/listing/4607676717/autumn-waffle-knit-shirt",
+   "img": "autumn-waffle-knit-shirt",
+   "colours": [
+    {
+     "name": "Black",
+     "key": "black"
+    },
+    {
+     "name": "Ivory",
+     "key": "ivory"
+    }
+   ],
+   "fabric": "70% cotton, 30% polyester",
+   "gsm": 340,
+   "fit": "Loose, boxy",
+   "finish": "Vintage wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      24.41,
+      25.2,
+      25.98,
+      26.77,
+      27.56
+     ],
+     "cm": [
+      62.0,
+      64.0,
+      66.0,
+      68.0,
+      70.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      22.05,
+      22.83,
+      23.62,
+      24.41,
+      25.2
+     ],
+     "cm": [
+      56.0,
+      58.0,
+      60.0,
+      62.0,
+      64.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      29.13,
+      29.92,
+      30.71,
+      31.5,
+      32.28
+     ],
+     "cm": [
+      74.0,
+      76.0,
+      78.0,
+      80.0,
+      82.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "black": [
+     0,
+     2
+    ],
+    "ivory": [
+     1,
+     3
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/c0e5b7/8827939379/il_fullxfull.8827939379_e71r.jpg",
+    "https://i.etsystatic.com/54506076/r/il/388619/8827939423/il_fullxfull.8827939423_g01s.jpg",
+    "https://i.etsystatic.com/54506076/r/il/11335f/8780109276/il_fullxfull.8780109276_h6fr.jpg",
+    "https://i.etsystatic.com/54506076/r/il/536ca6/8780109350/il_fullxfull.8780109350_degj.jpg",
+    "https://i.etsystatic.com/54506076/r/il/3e955e/8827939569/il_fullxfull.8827939569_7m7r.jpg"
+   ]
+  },
+  {
+   "id": "4594086745",
+   "slug": "japan-jersey-sweatshirt",
+   "name": "Japan Jersey Sweatshirt",
+   "cat": "Tops",
+   "note": "Striped collar and sleeves, Mie Prefecture 19 print front and back.",
+   "price": 39.99,
+   "etsy": "https://www.etsy.com/listing/4594086745/japan-jersey-sweatshirt",
+   "img": "japan-jersey-sweatshirt",
+   "colours": null,
+   "fabric": "100% cotton",
+   "gsm": 380,
+   "fit": "Loose",
+   "finish": "Unwashed",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      27.17,
+      27.95,
+      28.74,
+      29.53
+     ],
+     "cm": [
+      69.0,
+      71.0,
+      73.0,
+      75.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      22.83,
+      23.62,
+      24.41,
+      25.2
+     ],
+     "cm": [
+      58.0,
+      60.0,
+      62.0,
+      64.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      30.31,
+      30.71,
+      31.1,
+      31.5
+     ],
+     "cm": [
+      77.0,
+      78.0,
+      79.0,
+      80.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/1d1e2d/8808036441/il_fullxfull.8808036441_q2dy.jpg",
+    "https://i.etsystatic.com/54506076/r/il/7916f5/8808036517/il_fullxfull.8808036517_kx0q.jpg",
+    "https://i.etsystatic.com/54506076/r/il/9b317c/8808036571/il_fullxfull.8808036571_htgg.jpg"
+   ]
+  },
+  {
+   "id": "4605137651",
+   "slug": "fleeced-sweatshirt",
+   "name": "Fleeced Sweatshirt",
+   "cat": "Tops",
+   "note": "Caffe Paradiso 1972 print on the chest, the full lemon graphic on the back.",
+   "price": 39.99,
+   "etsy": "https://www.etsy.com/listing/4605137651/fleeced-sweatshirt",
+   "img": "fleeced-sweatshirt",
+   "colours": null,
+   "fabric": "53% polyester, 42% cotton, 5% other",
+   "gsm": 350,
+   "fit": "Loose",
+   "finish": "Fleece lined",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      26.77,
+      27.56,
+      28.35,
+      29.13,
+      29.92
+     ],
+     "cm": [
+      68.0,
+      70.0,
+      72.0,
+      74.0,
+      76.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      23.62,
+      24.41,
+      25.2,
+      25.98,
+      26.77
+     ],
+     "cm": [
+      60.0,
+      62.0,
+      64.0,
+      66.0,
+      68.0
+     ]
+    },
+    {
+     "name": "Shoulder",
+     "inch": [
+      24.02,
+      24.8,
+      25.59,
+      26.38,
+      27.17
+     ],
+     "cm": [
+      61.0,
+      63.0,
+      65.0,
+      67.0,
+      69.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      20.08,
+      20.47,
+      20.87,
+      21.26,
+      21.65
+     ],
+     "cm": [
+      51.0,
+      52.0,
+      53.0,
+      54.0,
+      55.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/68ebd5/8758995948/il_fullxfull.8758995948_62t2.jpg",
+    "https://i.etsystatic.com/54506076/r/il/0fd1bb/8758996024/il_fullxfull.8758996024_8z0o.jpg",
+    "https://i.etsystatic.com/54506076/r/il/5fb4df/8758996116/il_fullxfull.8758996116_26nv.jpg"
+   ]
+  },
+  {
+   "id": "4593312297",
+   "slug": "logo-compression-shirt",
+   "name": "Logo Compression Shirt",
+   "cat": "Tops",
+   "note": "Fitted training top with contrast seams and a star at the chest.",
+   "price": 24.99,
+   "etsy": "https://www.etsy.com/listing/4593312297/mens-raglan-panel-training-t-shirt",
+   "img": "mens-raglan-panel-training-t-shirt",
+   "colours": null,
+   "fabric": "87% polyester, 13% spandex",
+   "gsm": 180,
+   "fit": "Fitted",
+   "finish": "Paneled",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      24.8,
+      25.59,
+      26.38,
+      27.17
+     ],
+     "cm": [
+      63.0,
+      65.0,
+      67.0,
+      69.0
+     ]
+    },
+    {
+     "name": "Chest",
+     "inch": [
+      17.32,
+      18.11,
+      18.9,
+      19.69
+     ],
+     "cm": [
+      44.0,
+      46.0,
+      48.0,
+      50.0
+     ]
+    },
+    {
+     "name": "Sleeve",
+     "inch": [
+      10.83,
+      11.42,
+      12.01,
+      12.6
+     ],
+     "cm": [
+      27.5,
+      29.0,
+      30.5,
+      32.0
+     ]
+    }
+   ],
+   "review": "Nice design, fits well! Would recommend!",
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/a3752f/8734845454/il_fullxfull.8734845454_om61.jpg",
+    "https://i.etsystatic.com/54506076/r/il/a25969/8782676157/il_fullxfull.8782676157_pg19.jpg",
+    "https://i.etsystatic.com/54506076/r/il/34837a/8782676215/il_fullxfull.8782676215_e40d.jpg"
+   ]
+  },
+  {
+   "id": "4594819815",
+   "slug": "fury-logo-straight-sweatpants",
+   "name": "Fury Logo Straight Sweatpants",
+   "cat": "Sweats",
+   "note": "Cobalt flame star at the ankle, a smaller one on the back pocket.",
+   "price": 45.99,
+   "etsy": "https://www.etsy.com/listing/4594819815/fury-logo-straight-sweatpants",
+   "img": "fury-logo-straight-sweatpants",
+   "colours": null,
+   "fabric": "51% polyester, 49% cotton",
+   "gsm": 360,
+   "fit": "Oversized",
+   "finish": "Fleece lined",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      41.73,
+      42.13,
+      42.52,
+      42.91,
+      43.31
+     ],
+     "cm": [
+      106.0,
+      107.0,
+      108.0,
+      109.0,
+      110.0
+     ]
+    },
+    {
+     "name": "Waist",
+     "inch": [
+      13.39,
+      14.17,
+      14.96,
+      15.75,
+      16.54
+     ],
+     "cm": [
+      34.0,
+      36.0,
+      38.0,
+      40.0,
+      42.0
+     ]
+    },
+    {
+     "name": "Hip",
+     "inch": [
+      21.06,
+      21.85,
+      22.64,
+      23.43,
+      24.21
+     ],
+     "cm": [
+      53.5,
+      55.5,
+      57.5,
+      59.5,
+      61.5
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/4cb9d0/8721170317/il_fullxfull.8721170317_rug4.jpg",
+    "https://i.etsystatic.com/54506076/r/il/f90252/8721170391/il_fullxfull.8721170391_l9f8.jpg",
+    "https://i.etsystatic.com/54506076/r/il/b9c820/8673340554/il_fullxfull.8673340554_sldy.jpg"
+   ]
+  },
+  {
+   "id": "4593496941",
+   "slug": "signature-straight-sweatpants",
+   "name": "Signature Straight Sweatpants",
+   "cat": "Sweats",
+   "note": "Contrast piping curves down each leg, white drawcord.",
+   "price": 37.99,
+   "etsy": "https://www.etsy.com/listing/4593496941/signature-straight-sweatpants",
+   "img": "signature-straight-sweatpants",
+   "colours": null,
+   "fabric": "57.4% polyester, 36.8% cotton, 5.8% other",
+   "gsm": 350,
+   "fit": "Oversized",
+   "finish": "Fleece lined",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      42.91,
+      43.7,
+      44.49,
+      45.28
+     ],
+     "cm": [
+      109.0,
+      111.0,
+      113.0,
+      115.0
+     ]
+    },
+    {
+     "name": "Waist",
+     "inch": [
+      13.78,
+      14.37,
+      14.96,
+      15.55
+     ],
+     "cm": [
+      35.0,
+      36.5,
+      38.0,
+      39.5
+     ]
+    },
+    {
+     "name": "Hip",
+     "inch": [
+      23.62,
+      24.41,
+      25.2,
+      25.98
+     ],
+     "cm": [
+      60.0,
+      62.0,
+      64.0,
+      66.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/e81e95/8673321302/il_fullxfull.8673321302_8vhd.jpg",
+    "https://i.etsystatic.com/54506076/r/il/3181a8/8721151367/il_fullxfull.8721151367_s3hi.jpg",
+    "https://i.etsystatic.com/54506076/r/il/47f8be/8673321396/il_fullxfull.8673321396_sohj.jpg"
+   ]
+  },
+  {
+   "id": "4602331440",
+   "slug": "earth-barrel-leg-sweatpants",
+   "name": "Earth Barrel Leg Sweatpants",
+   "cat": "Sweats",
+   "note": "Deep brown barrel leg with a vine script on the lower leg.",
+   "price": 39.99,
+   "etsy": "https://www.etsy.com/listing/4602331440/earth-barrel-leg-sweatpants",
+   "img": "earth-barrel-leg-sweatpants",
+   "colours": null,
+   "fabric": "53% polyester, 42% cotton, 5% other",
+   "gsm": 345,
+   "fit": "Loose",
+   "finish": "Elastic waist",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      40.55,
+      41.34,
+      42.13,
+      42.91,
+      43.7
+     ],
+     "cm": [
+      103.0,
+      105.0,
+      107.0,
+      109.0,
+      111.0
+     ]
+    },
+    {
+     "name": "Waist",
+     "inch": [
+      12.6,
+      13.39,
+      14.17,
+      14.96,
+      15.75
+     ],
+     "cm": [
+      32.0,
+      34.0,
+      36.0,
+      38.0,
+      40.0
+     ]
+    },
+    {
+     "name": "Hip",
+     "inch": [
+      21.26,
+      22.05,
+      22.83,
+      23.62,
+      24.41
+     ],
+     "cm": [
+      54.0,
+      56.0,
+      58.0,
+      60.0,
+      62.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/84e49e/8788154681/il_fullxfull.8788154681_hmdl.jpg",
+    "https://i.etsystatic.com/54506076/r/il/9f2815/8788154767/il_fullxfull.8788154767_lc7s.jpg",
+    "https://i.etsystatic.com/54506076/r/il/f295cc/8788154845/il_fullxfull.8788154845_1wy4.jpg"
+   ]
+  },
+  {
+   "id": "4598360332",
+   "slug": "waistband-barrel-sweatpants",
+   "name": "Waistband Barrel Sweatpants",
+   "cat": "Sweats",
+   "note": "Barrel leg, contrast waistband, red line art at both knees.",
+   "price": 39.99,
+   "etsy": "https://www.etsy.com/listing/4598360332/waistband-barrel-sweatpants",
+   "img": "waistband-barrel-sweatpants",
+   "colours": null,
+   "fabric": "64.1% cotton, 35.9% polyester",
+   "gsm": 350,
+   "fit": "Loose",
+   "finish": "Paneled",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      41.34,
+      42.13,
+      42.91,
+      43.7,
+      44.49
+     ],
+     "cm": [
+      105.0,
+      107.0,
+      109.0,
+      111.0,
+      113.0
+     ]
+    },
+    {
+     "name": "Waist",
+     "inch": [
+      12.99,
+      13.78,
+      14.57,
+      15.35,
+      16.14
+     ],
+     "cm": [
+      33.0,
+      35.0,
+      37.0,
+      39.0,
+      41.0
+     ]
+    },
+    {
+     "name": "Hip",
+     "inch": [
+      22.83,
+      23.62,
+      24.41,
+      25.2,
+      25.98
+     ],
+     "cm": [
+      58.0,
+      60.0,
+      62.0,
+      64.0,
+      66.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/52049f/8734788254/il_fullxfull.8734788254_mg59.jpg",
+    "https://i.etsystatic.com/54506076/r/il/aa40ae/8782618777/il_fullxfull.8782618777_swsw.jpg",
+    "https://i.etsystatic.com/54506076/r/il/52e71e/8782618825/il_fullxfull.8782618825_zh49.jpg"
+   ]
+  },
+  {
+   "id": "4594094089",
+   "slug": "darks-barrel-fleece-sweatpants",
+   "name": "Darks Barrel Fleece Sweatpants",
+   "cat": "Sweats",
+   "note": "Washed black barrel leg with a red script on the thigh.",
+   "price": 45.99,
+   "etsy": "https://www.etsy.com/listing/4594094089/darks-barrel-fleece-sweatpants",
+   "img": "darks-barrel-fleece-sweatpants",
+   "colours": null,
+   "fabric": "53% polyester, 42% cotton, 5% other",
+   "gsm": 390,
+   "fit": "Regular",
+   "finish": "Vintage wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      40.55,
+      41.34,
+      42.13,
+      42.91,
+      43.7
+     ],
+     "cm": [
+      103.0,
+      105.0,
+      107.0,
+      109.0,
+      111.0
+     ]
+    },
+    {
+     "name": "Waist",
+     "inch": [
+      12.6,
+      13.39,
+      14.17,
+      14.96,
+      15.75
+     ],
+     "cm": [
+      32.0,
+      34.0,
+      36.0,
+      38.0,
+      40.0
+     ]
+    },
+    {
+     "name": "Hip",
+     "inch": [
+      23.23,
+      24.02,
+      24.8,
+      25.59,
+      26.38
+     ],
+     "cm": [
+      59.0,
+      61.0,
+      63.0,
+      65.0,
+      67.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/f83177/8673309456/il_fullxfull.8673309456_lv4m.jpg",
+    "https://i.etsystatic.com/54506076/r/il/ecb81c/8673309524/il_fullxfull.8673309524_pn1k.jpg",
+    "https://i.etsystatic.com/54506076/r/il/2a54f0/8673309570/il_fullxfull.8673309570_k9wp.jpg"
+   ]
+  },
+  {
+   "id": "4594094949",
+   "slug": "starfish-fleece-faded-shorts",
+   "name": "Starfish Fleece Faded Shorts",
+   "cat": "Shorts",
+   "note": "Sun-faded olive fleece with pink starfish down the legs.",
+   "price": 46.99,
+   "etsy": "https://www.etsy.com/listing/4594094949/starfish-fleece-faded-shorts",
+   "img": "starfish-fleece-faded-shorts",
+   "colours": null,
+   "fabric": "70% cotton, 30% polyester",
+   "gsm": 340,
+   "fit": "Wide leg",
+   "finish": "Sunfade wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      25.98,
+      26.38,
+      26.77,
+      27.17,
+      27.56
+     ],
+     "cm": [
+      66.0,
+      67.0,
+      68.0,
+      69.0,
+      70.0
+     ]
+    },
+    {
+     "name": "Waist",
+     "inch": [
+      14.17,
+      14.96,
+      15.75,
+      16.54,
+      17.32
+     ],
+     "cm": [
+      36.0,
+      38.0,
+      40.0,
+      42.0,
+      44.0
+     ]
+    },
+    {
+     "name": "Hip",
+     "inch": [
+      21.46,
+      22.24,
+      23.03,
+      23.82,
+      24.61
+     ],
+     "cm": [
+      54.5,
+      56.5,
+      58.5,
+      60.5,
+      62.5
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/165949/8721139005/il_fullxfull.8721139005_7c2u.jpg",
+    "https://i.etsystatic.com/54506076/r/il/d92b0f/8721139041/il_fullxfull.8721139041_nyg1.jpg",
+    "https://i.etsystatic.com/54506076/r/il/045576/8721139093/il_fullxfull.8721139093_2fwx.jpg"
+   ]
+  },
+  {
+   "id": "4593770988",
+   "slug": "logo-wash-jorts",
+   "name": "Logo Wash Jorts",
+   "cat": "Shorts",
+   "note": "Faded denim, cobalt star at the hem, raw edge.",
+   "price": 39.99,
+   "etsy": "https://www.etsy.com/listing/4593770988/logo-wash-jorts",
+   "img": "logo-wash-jorts",
+   "colours": null,
+   "fabric": "80% cotton, 14% cellulose, 6% polyester",
+   "gsm": 425,
+   "fit": "Loose",
+   "finish": "Sunfade wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      27.17,
+      27.56,
+      27.95,
+      28.35,
+      28.74
+     ],
+     "cm": [
+      69.0,
+      70.0,
+      71.0,
+      72.0,
+      73.0
+     ]
+    },
+    {
+     "name": "Waist",
+     "inch": [
+      14.57,
+      15.35,
+      16.14,
+      16.93,
+      17.72
+     ],
+     "cm": [
+      37.0,
+      39.0,
+      41.0,
+      43.0,
+      45.0
+     ]
+    },
+    {
+     "name": "Hip",
+     "inch": [
+      20.87,
+      21.65,
+      22.44,
+      23.23,
+      24.02
+     ],
+     "cm": [
+      53.0,
+      55.0,
+      57.0,
+      59.0,
+      61.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/604c71/8782644293/il_fullxfull.8782644293_lrhu.jpg",
+    "https://i.etsystatic.com/54506076/r/il/a8fb05/8734814060/il_fullxfull.8734814060_3q2o.jpg",
+    "https://i.etsystatic.com/54506076/r/il/4b5e05/8734814130/il_fullxfull.8734814130_cfjo.jpg"
+   ]
+  },
+  {
+   "id": "4605915280",
+   "slug": "vintage-wash-denim-shorts",
+   "name": "Vintage Wash Denim Shorts",
+   "cat": "Shorts",
+   "note": "Reverse wash, tonal flames on the legs, a star at the back hem.",
+   "price": 41.89,
+   "etsy": "https://www.etsy.com/listing/4605915280/vintage-wash-demin-shorts",
+   "img": "vintage-wash-demin-shorts",
+   "colours": null,
+   "fabric": "80% cotton, 14% cellulose, 6% polyester",
+   "gsm": 430,
+   "fit": "Loose",
+   "finish": "Reverse wash",
+   "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL"
+   ],
+   "rows": [
+    {
+     "name": "Length",
+     "inch": [
+      27.17,
+      27.56,
+      27.95,
+      28.35,
+      28.74
+     ],
+     "cm": [
+      69.0,
+      70.0,
+      71.0,
+      72.0,
+      73.0
+     ]
+    },
+    {
+     "name": "Waist",
+     "inch": [
+      13.78,
+      14.57,
+      15.35,
+      16.14,
+      16.93
+     ],
+     "cm": [
+      35.0,
+      37.0,
+      39.0,
+      41.0,
+      43.0
+     ]
+    },
+    {
+     "name": "Hip",
+     "inch": [
+      23.23,
+      24.02,
+      24.8,
+      25.59,
+      26.38
+     ],
+     "cm": [
+      59.0,
+      61.0,
+      63.0,
+      65.0,
+      67.0
+     ]
+    }
+   ],
+   "review": null,
+   "feature": false,
+   "views": {
+    "": [
+     0,
+     1
+    ]
+   },
+   "photos": [
+    "https://i.etsystatic.com/54506076/r/il/a7a672/8765177058/il_fullxfull.8765177058_5t0y.jpg",
+    "https://i.etsystatic.com/54506076/r/il/593cf9/8765177126/il_fullxfull.8765177126_1j2g.jpg",
+    "https://i.etsystatic.com/54506076/r/il/7415ea/8765177190/il_fullxfull.8765177190_6x77.jpg"
+   ]
+  }
+ ]
+}
