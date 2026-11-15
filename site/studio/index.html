@@ -241,24 +241,8 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
   </div>
 </header>
 
-<!-- first visit on a computer: connect it to the GitHub repo -->
-<div class="gate" data-gate hidden>
-  <h1>Connect this computer</h1>
-  <p>The studio saves straight to the True Offline repo on GitHub, so it needs a key to that repo. You do this once on each computer you use.</p>
-  <ol>
-    <li><a data-token-link href="#" target="_blank" rel="noopener"><b>Make a key on GitHub</b></a> (it opens with the name filled in).</li>
-    <li>Under <b>Repository access</b> pick <b>Only select repositories</b>, then <b>true-offline</b>.</li>
-    <li>Under <b>Permissions</b>, <b>Repository permissions</b>, set <b>Contents</b> to <b>Read and write</b>.</li>
-    <li>Press <b>Generate token</b>, copy it and paste it here.</li>
-  </ol>
-  <form class="row" data-connect>
-    <label class="sr" for="tok">GitHub key</label>
-    <input class="field" id="tok" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
-    <button class="btn btn-ink" type="submit">Connect</button>
-  </form>
-  <div data-gate-error></div>
-  <p class="quiet-note">The key stays in this browser and is only ever sent to GitHub. On a computer that is not yours, press Disconnect when you are done.</p>
-</div>
+<!-- the connect / password / setup screens, filled in by the script -->
+<div class="gate" data-gate hidden></div>
 
 <main class="wrap" data-main hidden>
 
@@ -294,7 +278,7 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
   <ul class="grid" data-grid></ul>
 </section>
 
-<footer><span data-built></span><button class="btn-text" type="button" data-disconnect>Disconnect this computer</button></footer>
+<footer><span data-built></span><button class="btn-text" type="button" data-signout hidden>Sign out of this browser</button></footer>
 </main>
 
 <div class="scrim" data-scrim></div>
@@ -305,13 +289,15 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
 <script>
 (() => {
   'use strict';
-  /* Where everything is kept. The page reads and writes one file, catalog.json, in this repo. A push to
-     that file starts the Studio workflow (.github/workflows/studio.yml), which makes the site match it. */
+  /* The page reads and writes one file, catalog.json, in this repo, through a small server (the worker
+     in tools/studio/worker.js) that holds the GitHub token so nobody has to paste one. Its address is
+     in config.json next to this page. A push to catalog.json starts the Studio workflow
+     (.github/workflows/studio.yml), which makes the site match it. */
   const q = new URLSearchParams(location.search);
   const OWNER = 'reidwcoleman', REPO = 'true-offline';
   const BRANCH = /^[\w.-]{1,40}$/.test(q.get('branch') || '') ? q.get('branch') : 'main';
-  const API = (window.TO_STUDIO_API || 'https://api.github.com') + `/repos/${OWNER}/${REPO}`;
-  const KEY = 'to-studio-key';
+  const PASS_KEY = 'to-studio-pass';
+  let API = '';                       // the worker's address, set once config.json is read
   const FALLS = ['petals', 'stars', 'feathers', 'flames'], CATS = ['Hoodies', 'Tops', 'Sweats', 'Shorts'];
   const EDITABLE = ['name', 'note', 'cat', 'price', 'fabric', 'gsm', 'fit', 'finish', 'feature', 'hidden', 'views', 'draft'];
 
@@ -328,22 +314,22 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
     warn: '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 3 1.5 17h17L10 3Zm0 5v4m0 2.5v.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   };
 
-  let token = '';
-  try { token = localStorage.getItem(KEY) || ''; } catch (e) { /* private window: ask each time */ }
+  let pass = '';                      // the studio password, if the owner set one on the worker
+  try { pass = localStorage.getItem(PASS_KEY) || ''; } catch (e) { /* private window: ask this visit */ }
   let base = null;                    // the catalog as it is on GitHub
   let cat = null;                     // the same, with this page's unpublished edits
   let editing = null, capture = null, busy = false;
 
-  /* ---------- GitHub ---------- */
+  /* ---------- the server ---------- */
   class Trouble extends Error {}
   async function gh(path, opts = {}) {
     let r;
     try {
-      r = await fetch(API + path, { ...opts, cache: 'no-store', headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', Authorization: 'Bearer ' + token, ...(opts.body ? { 'Content-Type': 'application/json' } : {}) } });
-    } catch (e) { throw new Trouble('Could not reach GitHub. Check the internet connection.'); }
-    if (r.status === 401) { disconnect(); throw new Trouble('GitHub no longer accepts that key. Make a new one and connect again.'); }
+      r = await fetch(API + path, { ...opts, cache: 'no-store', headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', ...(pass ? { 'X-Studio-Pass': pass } : {}), ...(opts.body ? { 'Content-Type': 'application/json' } : {}) } });
+    } catch (e) { throw new Trouble('Could not reach the studio server. Check the internet connection.'); }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { const e = new Trouble(j.message || 'GitHub said no.'); e.status = r.status; throw e; }
+    if (r.status === 401 && j.error === 'password') { const e = new Trouble('This studio needs its password.'); e.needPass = true; throw e; }
+    if (!r.ok) { const e = new Trouble(j.message || 'The studio server said no.'); e.status = r.status; throw e; }
     return j;
   }
   const utf8 = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, '')), c => c.charCodeAt(0)));
@@ -396,7 +382,11 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
     t.innerHTML = html; t.classList.toggle('bad', !!bad); t.classList.add('on');
     clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms);
   };
-  const fail = e => { if (!(e instanceof Trouble)) console.error(e); toast(esc(e instanceof Trouble ? e.message : 'Something went wrong on this page. Reload and try again.'), true, 8000); };
+  const fail = e => {
+    if (e && e.needPass) { showGate('pass', 'The studio password changed. Enter it again.'); return; }
+    if (!(e instanceof Trouble)) console.error(e);
+    toast(esc(e instanceof Trouble ? e.message : 'Something went wrong on this page. Reload and try again.'), true, 8000);
+  };
   const by = slug => cat.products.find(p => p.slug === slug);
   const stem = p => p.img + (p.colours && p.colours.length ? '-' + p.colours[0].key : '');
   const ver = () => encodeURIComponent((base && base.built) || '');
@@ -428,34 +418,49 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
   const changed = () => { draw(); };
 
   /* ---------- connect ---------- */
-  function disconnect() {
-    token = '';
-    try { localStorage.removeItem(KEY); } catch (e) { /* nothing kept */ }
-    $('[data-main]').hidden = true; $('[data-top]').hidden = true; $('[data-gate]').hidden = false;
-  }
-  $('[data-token-link]').href = 'https://github.com/settings/personal-access-tokens/new?name=' + encodeURIComponent('True Offline Studio') + '&description=' + encodeURIComponent('Lets the studio page save to the true-offline repo') + `&target_name=${OWNER}&contents=write&expires_in=365`;
-  $('[data-connect]').addEventListener('submit', async e => {
-    e.preventDefault();
-    const box = $('[data-gate-error]'), b = $('button', e.currentTarget);
-    box.innerHTML = '';
-    token = $('#tok').value.trim();
-    if (!token) return;
-    b.disabled = true;
-    try {
-      const r = await gh('');
-      if (r.permissions && r.permissions.push === false) throw new Trouble('That key belongs to an account that cannot change this repo.');
-      try { localStorage.setItem(KEY, token); } catch (err) { /* works for this visit only */ }
-      $('#tok').value = '';
-      await start();
-    } catch (err) {
-      token = '';
-      box.innerHTML = `<p class="err" role="alert">${ICON.warn}<span>${esc(err instanceof Trouble && err.status !== 404 ? err.message : 'GitHub did not accept that key for the true-offline repo. Check the steps above and paste it again.')}</span></p>`;
+  /* Three screens, shown when there is nothing to do yet: the site needs its server set up, the studio
+     wants its password, or the server cannot be reached. */
+  const gate = $('[data-gate]');
+  function showGate(kind, msg) {
+    $('[data-main]').hidden = true; $('[data-top]').hidden = true;
+    gate.hidden = false;
+    if (kind === 'setup') {
+      gate.innerHTML = `<h1>One step left</h1><p>The studio talks to a small free server that holds the key to the shop, so nobody has to paste one. It has not been set up yet.</p>
+        <p>Follow <b>The studio's server</b> in the project's README: deploy the worker in <b>tools/studio/</b>, then put its web address into <b>site/studio/config.json</b>. After that this page just works, here and on any computer.</p>
+        <p class="quiet-note">You only do this once, ever.</p><button class="btn btn-quiet" type="button" data-retry>Try again</button>`;
+    } else if (kind === 'pass') {
+      gate.innerHTML = `<h1>Enter the studio password</h1><p>This studio is kept behind a password. Type it once and this browser remembers it.</p>
+        <form class="row" data-connect><label class="sr" for="pw">Password</label><input class="field" id="pw" type="password" autocomplete="current-password" spellcheck="false"><button class="btn btn-ink" type="submit">Enter</button></form>
+        <div data-gate-error>${msg ? `<p class="err" role="alert">${ICON.warn}<span>${esc(msg)}</span></p>` : ''}</div>
+        <p class="quiet-note">Kept in this browser only. On a computer that is not yours, press Sign out when you are done.</p>`;
+    } else {
+      gate.innerHTML = `<h1>Can't reach the studio server</h1><p>${esc(msg || 'It did not answer. It may be a passing glitch.')}</p><button class="btn btn-quiet" type="button" data-retry>Try again</button>`;
     }
+  }
+  gate.addEventListener('submit', async e => {
+    if (!e.target.matches('[data-connect]')) return;
+    e.preventDefault();
+    const b = $('button', e.target);
+    pass = $('#pw').value.trim();
+    b.disabled = true;
+    try { await connect(); }
+    catch (err) { pass = ''; showGate('pass', err && err.needPass ? 'That password did not work. Try again.' : (err instanceof Trouble ? err.message : 'That did not work.')); }
     b.disabled = false;
   });
-  $('[data-disconnect]').addEventListener('click', () => {
+  gate.addEventListener('click', e => { if (e.target.closest('[data-retry]')) boot(); });
+  async function connect() {
+    await gh('');                     // proves the server answers and the password (if any) is right
+    try { localStorage.setItem(PASS_KEY, pass); } catch (e) { /* this visit only */ }
+    await start();
+  }
+  function signOut() {
+    pass = '';
+    try { localStorage.removeItem(PASS_KEY); } catch (e) { /* nothing kept */ }
+    showGate('pass');
+  }
+  $('[data-signout]').addEventListener('click', () => {
     if (pending().length) return toast('Publish or undo your changes first.', true);
-    disconnect(); toast('Disconnected. The key is gone from this browser.');
+    signOut(); toast('Signed out. The password is gone from this browser.');
   });
 
   /* ---------- the bookmark button ---------- */
@@ -831,14 +836,30 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);display
     if (editing && by(editing)) openSheet(editing); else closeSheet();
   }
   async function start() {
-    $('[data-gate]').hidden = true; $('[data-main]').hidden = false; $('[data-top]').hidden = false;
+    gate.hidden = true; $('[data-main]').hidden = false; $('[data-top]').hidden = false;
+    $('[data-signout]').hidden = !pass;                 // nothing to sign out of when there is no password
     $('[data-grid]').innerHTML = Array.from({ length: 12 }, () => '<li><div class="sk" style="aspect-ratio:4/5"></div></li>').join('');
     try { await reload(); watch(0); }
-    catch (e) { $('[data-grid]').innerHTML = `<li class="empty">${esc(e instanceof Trouble ? e.message : 'The catalog could not be read.')}</li>`; if (!(e instanceof Trouble)) console.error(e); }
+    catch (e) {
+      if (e && e.needPass) return showGate('pass');
+      $('[data-grid]').innerHTML = `<li class="empty">${esc(e instanceof Trouble ? e.message : 'The catalog could not be read.')}</li>`;
+      if (!(e instanceof Trouble)) console.error(e);
+    }
+  }
+  async function boot() {
+    let cfg = window.TO_STUDIO_CONFIG || null;
+    if (!cfg) { try { cfg = await (await fetch('./config.json?t=' + Date.now(), { cache: 'no-store' })).json(); } catch (e) { cfg = null; } }
+    if (!cfg || !cfg.api || /REPLACE|example\.com/i.test(cfg.api)) return showGate('setup');
+    API = String(cfg.api).replace(/\/+$/, '') + `/repos/${OWNER}/${REPO}`;
+    readCapture();
+    try { await connect(); }
+    catch (e) {
+      if (e && e.needPass) showGate('pass');
+      else showGate('down', e instanceof Trouble ? e.message : '');
+    }
   }
   addEventListener('beforeunload', e => { if (cat && pending().length) e.preventDefault(); });
-  readCapture();
-  if (token) start(); else $('[data-gate]').hidden = false;
+  boot();
 })();
 </script>
 </body>

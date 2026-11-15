@@ -6,3 +6,8 @@ tools/hero/fonts/
 __pycache__/
 
 site/_viewer.*
+
+# Cloudflare Worker (studio server)
+tools/studio/.wrangler/
+tools/studio/node_modules/
+.dev.vars
