@@ -37,45 +37,26 @@ cd site && python3 -m http.server 4780
 
 https://reidwcoleman.github.io/true-offline/studio/
 
-A page for running the shop from any computer, with no code. It lives in this repo (`site/studio/index.html`) and saves to this repo; GitHub does the work. Once the server below is set up, anyone can open the page and use it with nothing to paste.
+A page for running the shop from any computer, with no code. It lives in this repo (`site/studio/index.html`) and saves to this repo; GitHub does the work.
 
+- **Connect.** The first time on a computer, it asks for a GitHub key (a fine-grained token for this repo with Contents set to Read and write) and shows how to make one. The key stays in that browser. Disconnect removes it.
 - **Add a piece.** Drag the Add to True Offline button to the bookmarks bar once. On an Etsy listing, press it: the studio opens with the piece ready, and Add to the site sends it off. About three minutes later it is on the site, made the same way as the rest: photos sorted into front, back, colours and size chart, cut out, measurements read. Its one-line note is drafted from the Etsy text and is the one thing worth rewriting by hand.
 - **On show.** Choose which pieces are in the scrolling 3D section and in what order (two to eight). The first one opens the site. Each has a word, a glow colour, a word colour and what falls around it. A piece that has never been on show gets its 3D model built when you publish.
 - **The line.** Drag to reorder. Click a piece to edit its name, note, type, price, fabric and so on, to make it a big tile, to hide it from the site, to change which photos are used, or to remove it.
 - **Publish** lists what changed and saves it. Nothing is live until then; the site follows about three minutes later, and the page shows the progress.
 
-### The studio's server (one-time setup)
-
-The page saves to the repo, but the repo is public, so the key to it cannot sit in the page. Instead a tiny free server (a Cloudflare Worker, `tools/studio/worker.js`) holds the key and does the saves. You set it up once, with the fine-grained GitHub token, and after that nobody ever enters anything.
-
-1. **Make the token.** On GitHub, Settings → Developer settings → Fine-grained tokens → Generate new token. Repository access: Only select repositories → `true-offline`. Permissions → Repository permissions → Contents → Read and write. Generate and copy it.
-2. **Deploy the worker.** With a free [Cloudflare](https://dash.cloudflare.com/sign-up) account and [Node](https://nodejs.org):
-   ```
-   cd tools/studio
-   npx wrangler login
-   npx wrangler deploy
-   npx wrangler secret put GH_TOKEN          # paste the token
-   # optional, for a shared password instead of fully open:
-   npx wrangler secret put STUDIO_PASSWORD   # type a word; skip this command to leave it open
-   ```
-   `wrangler deploy` prints the worker's address, like `https://true-offline-studio.<you>.workers.dev`.
-3. **Point the page at it.** Put that address into `site/studio/config.json` (replace the placeholder) and commit. Done — the studio works from anywhere.
-
-Leave `STUDIO_PASSWORD` unset and anyone with the studio link can edit the shop; the worst they can do is change the public catalog, which is in git and can be rolled back. Set it and the studio asks for that one word, once per browser. To change the token later (it is set to last a year), make a new one and run `npx wrangler secret put GH_TOKEN` again; nothing else changes.
-
 How it works:
 
-- **`catalog.json` is the one source of truth**: every product, the order of the line, what is on show, each 3D model's settings, and a `queue` of listings waiting to be made. The page only ever edits that one file, through the worker. `tools/build_data.py` turns it into `site/data.js` (`TO_PRODUCTS`, `TO_LINE`, `TO_SHOW`, `TO_FIT`, `TO_GLOW`) and keeps the piece count and cache version in `site/index.html` right. Nothing about which pieces exist is written into `app.js` or `tools/hero/main.js`.
-- **The token never reaches the page.** The worker holds it as an encrypted secret and does five things with it and nothing else: read and write `catalog.json`, and read the Studio workflow's progress, on this one repo. So even wide open, the worst anyone can do through it is edit the public catalog (recoverable from git); the token, the rest of the repo and the GitHub account are out of reach. It only answers the studio site (an origin allowlist in `wrangler.toml`), and never passes GitHub's own response headers back.
+- **`catalog.json` is the one source of truth**: every product, the order of the line, what is on show, each 3D model's settings, and a `queue` of listings waiting to be made. The page only ever edits that one file, through the GitHub API. `tools/build_data.py` turns it into `site/data.js` (`TO_PRODUCTS`, `TO_LINE`, `TO_SHOW`, `TO_FIT`, `TO_GLOW`) and keeps the piece count and cache version in `site/index.html` right. Nothing about which pieces exist is written into `app.js` or `tools/hero/main.js`.
 - **The worker.** A push that changes `catalog.json` starts `.github/workflows/studio.yml`, which runs `tools/studio/run.py` on one of GitHub's Mac runners (Apple Vision does the cutouts and reads the size charts, so it has to be a Mac). It makes queued pieces, remakes cutouts when the chosen photos change, builds 3D models for pieces newly on show, sweeps away files of removed pieces, rebuilds `data.js`, retakes the still that phones open on if the opening piece changed, commits, and deploys the site. Trouble with one piece is written to `problems` in the catalog, where the page shows it, and the rest carries on. `run.py` trusts nothing in the catalog: every field is checked and put in shape first.
 - **Why a bookmark button and not just a pasted link.** Etsy turns away anything that is not a real person's browser. Plain requests get a 403, and a real Chrome on GitHub's runners (Linux and Mac both tried, 2026-11-15) is stopped at Etsy's bot check. So the listing is read where it can be: in the browser of whoever is adding it. The button reads the listing's own data from the page (name, price, photos, description, sizes, colours) and hands it to the studio in the address. Photos are then fetched from Etsy's image host, which is open. Only photos on `i.etsystatic.com` are accepted. An Etsy API key would make a bare pasted link work; that is not set up.
 - **Saving is merge-safe.** On publish the page fetches the newest catalog, lays its own changes over it field by field, and saves. So it does not matter if the worker, or another computer, saved in between.
-- **Nobody enters a token.** The page talks only to the worker; the worker carries the token. With no password set the page goes straight in on any computer. With a password set, it is one word, remembered per browser, with a Sign out that forgets it.
 - **Hidden pieces** stay in the catalog and keep their images, but are left out of `data.js`.
 - **Cutouts** use Apple Vision. A pale garment on a white ground (the white tee) gives Vision nothing to find, so `plain_ground()` in `tools/build_assets.py` takes over: everything the background colour cannot reach from the border.
 - **3D models for any piece.** `tools/build_hero.py` builds hoodies, tops and bottoms. For a hoodie nobody has traced, the neck line and hood opening come from the outline (`auto_hood`): the row where the outline widens from hood to shoulders is the landmark, and on the five hand-traced pieces it lands within a few percent of where they were set by hand. Tops have no hood to carve. Trousers and shorts are open at the waist and at each leg (`extend_bottoms`). The first five keep their hand-traced settings in `catalog.json`.
 - **The grid** is laid out by `layout()` in `build_data.py`: bands of five, one big tile and four smalls, the big one alternating sides. A piece only gets its big tile while there are four smalls to go with it.
-- **Trying changes safely.** The workflow also runs for a branch called `studio-test` (without deploying), and the page takes `?branch=studio-test`. For tests, `window.TO_STUDIO_CONFIG = { api: '…' }` before load overrides `config.json`; `tools/studio/worker.js` runs against a stand-in GitHub by setting its `GITHUB_API`.
+- **Trying changes safely.** The workflow also runs for a branch called `studio-test` (without deploying), and the page takes `?branch=studio-test`. The page can be pointed at a stand-in for GitHub by setting `window.TO_STUDIO_API` before it loads.
+- **The key and other sites.** Browser storage is shared by everything under `reidwcoleman.github.io`, so keep the key fine-grained and limited to this one repo.
 - Locally, `tools/vision mask` hangs inside some command sandboxes. Run the build scripts from a normal terminal.
 
 ## Rebuilding by hand
